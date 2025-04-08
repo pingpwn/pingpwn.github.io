@@ -83,7 +83,7 @@ window.addEventListener('keydown', function(e) {
     }
 	
 	if (key === 49) { // '1' key
-        window.location.href = "https://corndogoncorndog.com";
+        window.location.href = "https://ckjcwf.ytmnd.com/";
 	}
 
 	if (key === 77) { // 'M' key
