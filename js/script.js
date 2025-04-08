@@ -14,6 +14,9 @@ var main = document.querySelector('main'),
 canvas.width = ww / 3;
 canvas.height = (ww * 0.5625) / 3;
 
+
+const originalMenu = ul.cloneNode(true); // Deep copy the menu
+
 // Generate CRT noise
 function snow(ctx) {
 
@@ -30,10 +33,43 @@ function snow(ctx) {
 	ctx.putImageData(d, 0, 0);
 }
 
+
+
 function animate() {
 	snow(ctx);
 	frame = requestAnimationFrame(animate);
 };
+
+
+function showAboutInfo() {
+	const aboutText = document.createElement('div');
+	window._originalMenu = originalMenu;
+    aboutText.className = 'about-text'; 
+    aboutText.innerHTML = `
+        <img src="assets/lecat.png" width="200" >
+		<p>
+            Hello! 
+			I'm PingPwn, a CTF player exploring weird machines. Lately I've been focusing on reverse engineering and binary exploitation. Feel free to reach out on discord @pingpwn <3
+        </p>
+    `;
+	window._originalMenu = ul.cloneNode(true);
+    const footer = document.querySelector('footer');
+    const keys = footer.querySelectorAll('.key');
+    window._originalKey = keys[1].cloneNode(true);
+
+    
+    const backKey = document.createElement('div');
+    backKey.className = 'key';
+    backKey.innerHTML = `Back: <span>2</span>`;
+
+	keys[1].replaceWith(backKey);
+    
+	window._backKey = backKey;
+
+    ul.parentElement.replaceChild(aboutText, ul);
+    window._aboutText = aboutText;
+}
+
 
 // Glitch
 for (i = 0; i < 4; i++) {
@@ -50,6 +86,28 @@ window.addEventListener('DOMContentLoaded', function(e) {
 });
 
 window.addEventListener('keydown', function(e) {
+	if (e.key === '2' && window._aboutText && window._originalMenu) {
+		e.preventDefault();
+	
+		// Restore menu
+		window._aboutText.parentElement.replaceChild(window._originalMenu, window._aboutText);
+		ul = window._originalMenu;
+		window._aboutText = null;
+		window._originalMenu = null;
+	
+		// Restore footer key
+		if (window._originalKey && window._backKey) {
+			window._backKey.replaceWith(window._originalKey);
+			window._originalKey = null;
+			window._backKey = null;
+		}
+	
+		// Rebind menu navigation
+		rebindMenuEvents();
+	}
+	
+
+
 	var key = e.keyCode;
 	var prev = idx;
 	if (key == 38 || key == 40) {
@@ -77,9 +135,17 @@ window.addEventListener('keydown', function(e) {
         var activeItem = ul.children[idx];
         var link = activeItem.querySelector('a');
 
-        if (link && link.href) {
-                window.location.href = link.href;
-        }
+        if (link) {
+			const href = link.getAttribute("href");
+			
+			// If it's the 'About' item (which has href="")
+			if (href === "" || href === "#") {
+				showAboutInfo();
+			} else {
+				window.location.href = link.href;
+			}
+		}
+		
     }
 	
 	if (key === 49) { // '1' key
