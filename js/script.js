@@ -55,14 +55,14 @@ function showAboutInfo() {
 	window._originalMenu = ul.cloneNode(true);
     const footer = document.querySelector('footer');
     const keys = footer.querySelectorAll('.key');
-    window._originalKey = keys[1].cloneNode(true);
+    window._originalKey = keys[0].cloneNode(true);
 
     
     const backKey = document.createElement('div');
     backKey.className = 'key';
-    backKey.innerHTML = `Back: <span>2</span>`;
+    backKey.innerHTML = `Back: <span>1</span>`;
 
-	keys[1].replaceWith(backKey);
+	keys[0].replaceWith(backKey);
     
 	window._backKey = backKey;
 
@@ -86,7 +86,7 @@ window.addEventListener('DOMContentLoaded', function(e) {
 });
 
 window.addEventListener('keydown', function(e) {
-	if (e.key === '2' && window._aboutText && window._originalMenu) {
+	if (e.key === '1' && window._aboutText && window._originalMenu) {
 		e.preventDefault();
 	
 		// Restore menu
@@ -130,7 +130,7 @@ window.addEventListener('keydown', function(e) {
 		ul.children[idx].classList.add('active');
 	}
 
-    if (key === 50) {
+    if (key === 49) {
         // Find the active menu item
         var activeItem = ul.children[idx];
         var link = activeItem.querySelector('a');
@@ -148,7 +148,7 @@ window.addEventListener('keydown', function(e) {
 		
     }
 	
-	if (key === 49) { // '1' key
+	if (key === 50) { // '1' key
         window.location.href = "https://ckjcwf.ytmnd.com/";
 	}
 
