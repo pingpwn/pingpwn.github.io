@@ -1,11 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- Credit for the CRT monitor effect: https://codepen.io/GLITCHXploitR/pen/OxGKrq -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>pingpwn</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    pingpwn
+    <main class="scanlines">
+        <div class="screen">
+            <canvas id="canvas" class="picture"></canvas>
+            <div class="overlay">
+                <div class="text">
+                    <span>AV-1</span>
+                </div>
+                <div class="menu">
+                    <header>
+                        Main Menu
+                    </header>
+                    <ul>
+                        <li class="active"><a href="#" title="">Picture</a></li>
+                        <li><a href="#" title="">Sound</a></li>
+                        <li><a href="#" title="">About</a></li>
+                        <li><a href="#" title="">Contact</a></li>
+                    </ul>
+                    <footer>
+                        <div class="key">Exit: <span>1</span></div>
+                        <div class="key">Select: <span>2</span></div>
+                    </footer>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="js/script.js"></script>
 </body>
 </html>
