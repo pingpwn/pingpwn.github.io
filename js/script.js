@@ -71,4 +71,22 @@ window.addEventListener('keydown', function(e) {
 		ul.children[prev].classList.remove('active');
 		ul.children[idx].classList.add('active');
 	}
+
+    if (key === 50) {
+        // Find the active menu item
+        var activeItem = ul.children[idx];
+        var link = activeItem.querySelector('a');
+
+        if (link && link.href) {
+                window.location.href = link.href;
+        }
+    }
+	
+	if (key === 49) { // '1' key
+        window.location.href = "https://corndogoncorndog.com";
+	}
+
+	if (key === 77) { // 'M' key
+        menu.classList.remove('hidden');
+	}
 }, false);
