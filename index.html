@@ -2,38 +2,34 @@
 <html lang="en">
 <!-- Credit for the CRT monitor effect: https://codepen.io/GLITCHXploitR/pen/OxGKrq -->
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>pingpwn</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pingpwn</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-    <main class="scanlines">
-        <div class="screen">
-            <canvas id="canvas" class="picture"></canvas>
-            <div class="overlay">
-                <div class="text">
-                    <span>AV-1</span>
-                </div>
-                <div class="menu">
-                    <header>
-                        Main Menu
-                    </header>
-                    <ul>
-                        <li class="active"><a href="" onclick="showAboutInfo(); return false;" title="">About</a></li>
-                        <li><a href="blog.html" title="">Blog / Writeups</a></li>
-                        <li><a href="https://app.hackthebox.com/users/771008" title="">HackTheBox</a></li>
-                        <li><a href="https://github.com/pingpwn" title="">Github</a></li>
-                        <li><a href="https://ctftime.org/user/194776" title="">CTFTime</a></li>
-                    </ul>
-                    <footer>
-                        <div class="key">Select: <span>1</span></div>
-                        <div class="key">Exit: <span>2</span></div>
-                    </footer>
-                </div>
-            </div>
+  <main class="scanlines">
+    <div class="screen">
+      <canvas id="canvas" class="picture"></canvas>
+
+      <div class="overlay">
+        <div class="text">
+          <span>AV-1</span>
         </div>
-    </main>
-    <script src="js/script.js"></script>
+
+        <div class="menu">
+          <header>Main Menu</header>
+          <ul>
+            <li><a href="#" data-action="about" title="About">About</a></li>
+            <li><a href="blog.html" title="Blog / Writeups">Blog / Writeups</a></li>
+            <li><a href="https://app.hackthebox.com/users/771008" target="_blank" rel="noopener" title="HackTheBox">HackTheBox</a></li>
+            <li><a href="https://github.com/pingpwn" target="_blank" rel="noopener" title="Github">Github</a></li>
+            <li><a href="https://ctftime.org/user/194776" target="_blank" rel="noopener" title="CTFTime">CTFTime</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="js/script.js"></script>
 </body>
 </html>

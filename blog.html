@@ -1,35 +1,927 @@
-<!DOCTYPE html>
-<html lang="en">
-<!-- Credit for the CRT monitor effect: https://codepen.io/GLITCHXploitR/pen/OxGKrq -->
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>pingpwn</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-    <main class="scanlines">
-        <div class="screen">
-            <canvas id="canvas" class="picture"></canvas>
-            <div class="overlay">
-                <div class="text">
-                    <span>AV-2</span>
-                </div>
-                <div class="menu">
-                    <header>
-                        in the making
-                    </header>
-                    <ul>
-                        
-                    </ul>
-                    <footer>
-                        <div class="key">Select: <span>1</span></div>
-                        <div class="key">Exit: <span>2</span></div>
-                    </footer>
-                </div>
-            </div>
-        </div>
-    </main>
-    <script src="js/script.js"></script>
-</body>
-</html>
+<h1 id="whr-cat">WHR-CAT</h1>
+<p><em>This was a reverse engineering challenge from <a
+href="https://ctftime.org/event/2765">Grey Cat the flag CTF 2025</a>.
+Join me in this journey of Virtual Machines</em> ### Description</p>
+<p>“My cat got encrypted, can you help to recover my cat :( (After
+recovering the flag, run strings | grep grey to get the flag)”</p>
+<h3 id="tldr">TL;DR</h3>
+<p>This is a VM challenge, where the author implemented a custom binary
+file format with segments, an instruction set and custom encryption in
+the VM’s bytecode which was used to encrypt the flag and produce the
+flag.enc file. Read the full solution to find out my unintended which
+saved me lots of time ;) ### Initial Analysis Initially we’re given 3
+files:</p>
+<pre><code>.rw-rw-r-- 1.9M kali 31 May 19:06 catt.enc
+.rw-rw-r--  519 kali 31 May 19:06 chall.sad
+.rwxrwxr-x  23k kali 31 May 19:06 runner</code></pre>
+<p>The file <code>runner</code> is a dynamically linked, stripped ELF
+binary. The other two files are labeled as just “data”. Simply running
+this ELF binary gives us the following output:</p>
+<p><code>Usage: ./sad &lt;name&gt;.sad &lt;arguments&gt;</code></p>
+<p>Immediately I got the feeling that this is a VM challenge, but of
+course to verify this I had to analyze the binary using Ghidra. This is
+the main function (after some time renaming some variables and
+functions):</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span><span class="dt">char</span> <span class="op">*</span>argv<span class="op">)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> success<span class="op">;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">size_t</span> sVar1<span class="op">;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> in_FS_OFFSET<span class="op">;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> local_84<span class="op">;</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> i<span class="op">;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> ret<span class="op">;</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> local_78<span class="op">;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> local_74<span class="op">;</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">char</span> <span class="op">*</span>user_input_file<span class="op">;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FILE</span> <span class="op">*</span>file_data<span class="op">;</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> local_60<span class="op">;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  undefined8 buf1<span class="op">;</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  undefined8 buf2<span class="op">;</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> local_48<span class="op">;</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="dt">void</span> <span class="op">*</span>local_40<span class="op">;</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  undefined8 magic_bytes<span class="op">;</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  undefined8 local_30<span class="op">;</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  undefined8 local_28<span class="op">;</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  undefined8 local_20<span class="op">;</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> canary<span class="op">;</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  canary <span class="op">=</span> <span class="op">*(</span><span class="dt">long</span> <span class="op">*)(</span>in_FS_OFFSET <span class="op">+</span> <span class="bn">0x28</span><span class="op">);</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="op">(</span>argc <span class="op">&lt;</span> <span class="dv">2</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    display_usage<span class="op">();</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    success <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    local_30 <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    magic_bytes <span class="op">=</span> <span class="bn">0x444153</span><span class="op">;</span> <span class="co">// &quot;SAD&quot;</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    user_input_file <span class="op">=</span> <span class="op">*(</span><span class="dt">char</span> <span class="op">**)(</span>argv <span class="op">+</span> <span class="dv">8</span><span class="op">);</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span>i <span class="op">=</span> <span class="dv">2</span><span class="op">;</span> i <span class="op">&lt;</span> argc<span class="op">;</span> i <span class="op">=</span> i <span class="op">+</span> <span class="dv">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>      <span class="op">*(</span>undefined8 <span class="op">*)(</span>argv <span class="op">+</span> <span class="op">(</span><span class="dt">long</span><span class="op">)</span>i <span class="op">*</span> <span class="dv">8</span> <span class="op">+</span> <span class="op">-</span><span class="bn">0x10</span><span class="op">)</span> <span class="op">=</span> <span class="op">*(</span>undefined8 <span class="op">*)(</span>argv <span class="op">+</span> <span class="op">(</span><span class="dt">long</span><span class="op">)</span>i <span class="op">*</span> <span class="dv">8</span><span class="op">);</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>    file_data <span class="op">=</span> fopen<span class="op">(</span>user_input_file<span class="op">,</span><span class="st">&quot;r&quot;</span><span class="op">);</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>file_data <span class="op">==</span> <span class="op">(</span><span class="dt">FILE</span> <span class="op">*)</span><span class="bn">0x0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>      printf<span class="op">(</span><span class="st">&quot;</span><span class="sc">%s</span><span class="st">: no such file or directory</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span>user_input_file<span class="op">);</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>      success <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>      ret <span class="op">=</span> fseek<span class="op">(</span>file_data<span class="op">,</span><span class="dv">0</span><span class="op">,</span><span class="dv">2</span><span class="op">);</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> <span class="op">(</span>ret <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>        local_60 <span class="op">=</span> ftell<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>local_60 <span class="op">==</span> <span class="op">-</span><span class="dv">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>          puts<span class="op">(</span><span class="st">&quot;An error occured&quot;</span><span class="op">);</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>        rewind<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>        local_28 <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>        local_20 <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>        sVar1 <span class="op">=</span> fread<span class="op">(&amp;</span>local_28<span class="op">,</span><span class="dv">1</span><span class="op">,</span><span class="bn">0x10</span><span class="op">,</span>file_data<span class="op">);</span></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>        local_78 <span class="op">=</span> <span class="op">(</span><span class="dt">int</span><span class="op">)</span>sVar1<span class="op">;</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>local_78 <span class="op">==</span> <span class="bn">0x10</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>          success <span class="op">=</span> memcmp<span class="op">(&amp;</span>magic_bytes<span class="op">,&amp;</span>local_28<span class="op">,</span><span class="bn">0x10</span><span class="op">);</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>          <span class="cf">if</span> <span class="op">(</span>success <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>            sVar1 <span class="op">=</span> fread<span class="op">(&amp;</span>local_84<span class="op">,</span><span class="dv">4</span><span class="op">,</span><span class="dv">1</span><span class="op">,</span>file_data<span class="op">);</span></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>            local_78 <span class="op">=</span> <span class="op">(</span><span class="dt">int</span><span class="op">)</span>sVar1<span class="op">;</span></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="op">(</span>local_78 <span class="op">==</span> <span class="dv">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>              buf1 <span class="op">=</span> safe_calloc<span class="op">(</span>local_84 <span class="op">&lt;&lt;</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>              buf2 <span class="op">=</span> safe_calloc<span class="op">(</span>local_84 <span class="op">&lt;&lt;</span> <span class="dv">3</span><span class="op">);</span></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>              load_program_segments<span class="op">(</span>buf1<span class="op">,</span>buf2<span class="op">,</span>local_84<span class="op">,</span>file_data<span class="op">);</span></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>              local_48 <span class="op">=</span> ftell<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>              local_74 <span class="op">=</span> <span class="op">(</span><span class="dt">int</span><span class="op">)</span>local_60 <span class="op">-</span> <span class="op">(</span><span class="dt">int</span><span class="op">)</span>local_48<span class="op">;</span></span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>              local_40 <span class="op">=</span> <span class="op">(</span><span class="dt">void</span> <span class="op">*)</span>safe_calloc<span class="op">(</span>local_74<span class="op">);</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>              <span class="cf">if</span> <span class="op">(</span>local_40 <span class="op">==</span> <span class="op">(</span><span class="dt">void</span> <span class="op">*)</span><span class="bn">0x0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>                puts<span class="op">(</span><span class="st">&quot;An error occured&quot;</span><span class="op">);</span></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>                fclose<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>                success <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>              <span class="op">}</span></span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>              <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>                sVar1 <span class="op">=</span> fread<span class="op">(</span>local_40<span class="op">,</span><span class="dv">1</span><span class="op">,(</span><span class="dt">long</span><span class="op">)</span>local_74<span class="op">,</span>file_data<span class="op">);</span></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>                local_78 <span class="op">=</span> <span class="op">(</span><span class="dt">int</span><span class="op">)</span>sVar1<span class="op">;</span></span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="op">(</span>local_78 <span class="op">==</span> local_74<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>                  execute_bytecode<span class="op">(</span>buf1<span class="op">,</span>buf2<span class="op">,</span>local_84<span class="op">,</span>local_40<span class="op">,</span>argc <span class="op">+</span> <span class="op">-</span><span class="dv">2</span><span class="op">,</span>argv<span class="op">);</span></span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>                  secure_free_memory<span class="op">(</span>buf1<span class="op">,</span>local_84 <span class="op">&lt;&lt;</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>                  secure_free_memory<span class="op">(</span>buf2<span class="op">,</span>local_84 <span class="op">&lt;&lt;</span> <span class="dv">3</span><span class="op">);</span></span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>                  fclose<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>                  file_data <span class="op">=</span> <span class="op">(</span><span class="dt">FILE</span> <span class="op">*)</span><span class="bn">0x0</span><span class="op">;</span></span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>                  success <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a>                <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a>                  puts<span class="op">(</span><span class="st">&quot;An error occured&quot;</span><span class="op">);</span></span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a>                  fclose<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a>                  success <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a>              <span class="op">}</span></span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a>              puts<span class="op">(</span><span class="st">&quot;An error occured&quot;</span><span class="op">);</span></span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>              fclose<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a>              success <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a>          <span class="op">}</span></span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a>          <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a>            puts<span class="op">(</span><span class="st">&quot;Invalid file signature!&quot;</span><span class="op">);</span></span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a>            fclose<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a>            success <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a>          <span class="op">}</span></span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a>          puts<span class="op">(</span><span class="st">&quot;Invalid file!&quot;</span><span class="op">);</span></span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a>          fclose<span class="op">(</span>file_data<span class="op">);</span></span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a>          success <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a>      <span class="op">}</span></span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a>      <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a>        puts<span class="op">(</span><span class="st">&quot;An error occured&quot;</span><span class="op">);</span></span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true" tabindex="-1"></a>        success <span class="op">=</span> <span class="op">-</span><span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true" tabindex="-1"></a>      <span class="op">}</span></span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="op">(</span>canary <span class="op">!=</span> <span class="op">*(</span><span class="dt">long</span> <span class="op">*)(</span>in_FS_OFFSET <span class="op">+</span> <span class="bn">0x28</span><span class="op">))</span> <span class="op">{</span></span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true" tabindex="-1"></a>                    <span class="co">/* </span><span class="al">WARNING</span><span class="co">: Subroutine does not return */</span></span>
+<span id="cb2-116"><a href="#cb2-116" aria-hidden="true" tabindex="-1"></a>    __stack_chk_fail<span class="op">();</span></span>
+<span id="cb2-117"><a href="#cb2-117" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb2-118"><a href="#cb2-118" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> success<span class="op">;</span></span>
+<span id="cb2-119"><a href="#cb2-119" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>As you can see the binary does the following: + Checks for a .sad
+file in the CLI arguments + Opens the file, and verifies that its first
+bytes match the “SAD” magic bytes + Loads some data from the file
+segments + Loads bytecode and executes it</p>
+<h3 id="execute_bytecode-function">execute_bytecode() function</h3>
+<p>If you want to look into how this VM works, here is the function
+which executes the bytecode:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> execute_bytecode<span class="op">(</span><span class="dt">long</span> buf1<span class="op">,</span><span class="dt">long</span> buf2<span class="op">,</span><span class="dt">int</span> param_3<span class="op">,</span><span class="dt">long</span> param_4<span class="op">,</span><span class="dt">int</span> param_5<span class="op">,</span><span class="dt">long</span> param_6<span class="op">)</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  undefined1 uVar1<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> iVar2<span class="op">;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> <span class="op">*</span>plVar3<span class="op">;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  undefined8 uVar4<span class="op">;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  undefined8 uVar5<span class="op">;</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  undefined8 <span class="op">*</span>puVar6<span class="op">;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> lVar7<span class="op">;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> in_FS_OFFSET<span class="op">;</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> i<span class="op">;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">int</span> local_5ffc<span class="op">;</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> <span class="op">*</span>heap<span class="op">;</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  undefined1 registers <span class="op">[</span><span class="dv">16</span><span class="op">];</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  undefined8 modulo<span class="op">;</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> local_5e08<span class="op">;</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> rip<span class="op">;</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  undefined1 stack <span class="op">[</span><span class="dv">8016</span><span class="op">];</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> heap_stuff <span class="op">[</span><span class="dv">1002</span><span class="op">];</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  undefined1 local_1f58 <span class="op">[</span><span class="dv">8008</span><span class="op">];</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="dt">long</span> canary<span class="op">;</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>  byte opcode<span class="op">;</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  canary <span class="op">=</span> <span class="op">*(</span><span class="dt">long</span> <span class="op">*)(</span>in_FS_OFFSET <span class="op">+</span> <span class="bn">0x28</span><span class="op">);</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  init_registers<span class="op">(</span>registers<span class="op">);</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  init_stack<span class="op">(</span>stack<span class="op">);</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  init_stack<span class="op">(</span>heap_stuff<span class="op">);</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  stack_push<span class="op">(</span>stack<span class="op">,</span>heap_stuff<span class="op">);</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>  stack_push<span class="op">(</span>heap_stuff<span class="op">,</span><span class="bn">0xffffffffffffffff</span><span class="op">);</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> <span class="op">(</span>i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> param_5<span class="op">;</span> i <span class="op">=</span> i <span class="op">+</span> <span class="dv">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    stack_push<span class="op">(</span>heap_stuff<span class="op">,*(</span>undefined8 <span class="op">*)(</span>param_6 <span class="op">+</span> <span class="op">(</span><span class="dt">long</span><span class="op">)</span>i <span class="op">*</span> <span class="dv">8</span><span class="op">));</span></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  rip <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  heap <span class="op">=</span> heap_stuff<span class="op">;</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  <span class="cf">while</span> <span class="op">(</span>iVar2 <span class="op">=</span> stack_is_empty<span class="op">(</span>stack<span class="op">),</span> iVar2 <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    opcode <span class="op">=</span> <span class="op">*(</span>byte <span class="op">*)(</span>param_4 <span class="op">+</span> rip<span class="op">);</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    iVar2 <span class="op">=</span> <span class="op">(</span><span class="dt">int</span><span class="op">)</span>rip<span class="op">;</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x99</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>      opcode <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>      local_5e08 <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>      syscall<span class="op">((</span><span class="dt">long</span><span class="op">)</span>registers<span class="op">,</span>heap<span class="op">,(</span>ulong<span class="op">)</span>opcode<span class="op">);</span></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> <span class="op">(</span>local_5e08 <span class="op">==</span> <span class="op">-</span><span class="dv">1</span><span class="op">)</span> <span class="cf">break</span><span class="op">;</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>      rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">2</span><span class="op">;</span></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x9a</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x40</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>        rip <span class="op">=</span> <span class="op">*</span>heap<span class="op">;</span></span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>rip <span class="op">==</span> <span class="op">-</span><span class="dv">1</span><span class="op">)</span> <span class="cf">break</span><span class="op">;</span></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>        heap <span class="op">=</span> <span class="op">(</span><span class="dt">long</span> <span class="op">*)</span>stack_pop<span class="op">(</span>stack<span class="op">);</span></span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>      <span class="op">}</span></span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>      <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x41</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x3f</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>          lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>          init_stack<span class="op">(</span>local_1f58<span class="op">);</span></span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>          stack_push<span class="op">(</span>stack<span class="op">,</span>local_1f58<span class="op">);</span></span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>          stack_push<span class="op">(</span>local_1f58<span class="op">,</span>rip <span class="op">+</span> <span class="dv">9</span><span class="op">);</span></span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>          rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x40</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>          <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x3e</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>            lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>            uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">9</span><span class="op">);</span></span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>            uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>            uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">10</span><span class="op">);</span></span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>            uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>            iVar2 <span class="op">=</span> not_equal_compare<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="op">(</span>iVar2 <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>              rip <span class="op">=</span> rip <span class="op">+</span> <span class="bn">0xb</span><span class="op">;</span></span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>              rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>          <span class="op">}</span></span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>          <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x3f</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x3d</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>              lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>              uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">9</span><span class="op">);</span></span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>              uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>              uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">10</span><span class="op">);</span></span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a>              uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>              iVar2 <span class="op">=</span> equal_compare<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>              <span class="cf">if</span> <span class="op">(</span>iVar2 <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>                rip <span class="op">=</span> rip <span class="op">+</span> <span class="bn">0xb</span><span class="op">;</span></span>
+<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>              <span class="op">}</span></span>
+<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>              <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>                rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>              <span class="op">}</span></span>
+<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x3e</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>              <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x3c</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>                lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>                uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">9</span><span class="op">);</span></span>
+<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>                uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>                uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">10</span><span class="op">);</span></span>
+<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>                uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a>                iVar2 <span class="op">=</span> less_equal_compare<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="op">(</span>iVar2 <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a>                  rip <span class="op">=</span> rip <span class="op">+</span> <span class="bn">0xb</span><span class="op">;</span></span>
+<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>                <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a>                  rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a>              <span class="op">}</span></span>
+<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a>              <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x3d</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x3b</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a>                  lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a>                  uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">9</span><span class="op">);</span></span>
+<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a>                  uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a>                  uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">10</span><span class="op">);</span></span>
+<span id="cb3-112"><a href="#cb3-112" aria-hidden="true" tabindex="-1"></a>                  uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-113"><a href="#cb3-113" aria-hidden="true" tabindex="-1"></a>                  iVar2 <span class="op">=</span> greater_equal_compare<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-114"><a href="#cb3-114" aria-hidden="true" tabindex="-1"></a>                  <span class="cf">if</span> <span class="op">(</span>iVar2 <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-115"><a href="#cb3-115" aria-hidden="true" tabindex="-1"></a>                    rip <span class="op">=</span> rip <span class="op">+</span> <span class="bn">0xb</span><span class="op">;</span></span>
+<span id="cb3-116"><a href="#cb3-116" aria-hidden="true" tabindex="-1"></a>                  <span class="op">}</span></span>
+<span id="cb3-117"><a href="#cb3-117" aria-hidden="true" tabindex="-1"></a>                  <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-118"><a href="#cb3-118" aria-hidden="true" tabindex="-1"></a>                    rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-119"><a href="#cb3-119" aria-hidden="true" tabindex="-1"></a>                  <span class="op">}</span></span>
+<span id="cb3-120"><a href="#cb3-120" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb3-121"><a href="#cb3-121" aria-hidden="true" tabindex="-1"></a>                <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x3c</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-122"><a href="#cb3-122" aria-hidden="true" tabindex="-1"></a>                  <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x3a</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-123"><a href="#cb3-123" aria-hidden="true" tabindex="-1"></a>                    lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-124"><a href="#cb3-124" aria-hidden="true" tabindex="-1"></a>                    uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">9</span><span class="op">);</span></span>
+<span id="cb3-125"><a href="#cb3-125" aria-hidden="true" tabindex="-1"></a>                    uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-126"><a href="#cb3-126" aria-hidden="true" tabindex="-1"></a>                    uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">10</span><span class="op">);</span></span>
+<span id="cb3-127"><a href="#cb3-127" aria-hidden="true" tabindex="-1"></a>                    uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-128"><a href="#cb3-128" aria-hidden="true" tabindex="-1"></a>                    iVar2 <span class="op">=</span> less_than_compare<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-129"><a href="#cb3-129" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> <span class="op">(</span>iVar2 <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-130"><a href="#cb3-130" aria-hidden="true" tabindex="-1"></a>                      rip <span class="op">=</span> rip <span class="op">+</span> <span class="bn">0xb</span><span class="op">;</span></span>
+<span id="cb3-131"><a href="#cb3-131" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb3-132"><a href="#cb3-132" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-133"><a href="#cb3-133" aria-hidden="true" tabindex="-1"></a>                      rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-134"><a href="#cb3-134" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb3-135"><a href="#cb3-135" aria-hidden="true" tabindex="-1"></a>                  <span class="op">}</span></span>
+<span id="cb3-136"><a href="#cb3-136" aria-hidden="true" tabindex="-1"></a>                  <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x3b</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-137"><a href="#cb3-137" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x39</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-138"><a href="#cb3-138" aria-hidden="true" tabindex="-1"></a>                      lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-139"><a href="#cb3-139" aria-hidden="true" tabindex="-1"></a>                      uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">9</span><span class="op">);</span></span>
+<span id="cb3-140"><a href="#cb3-140" aria-hidden="true" tabindex="-1"></a>                      uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-141"><a href="#cb3-141" aria-hidden="true" tabindex="-1"></a>                      uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">10</span><span class="op">);</span></span>
+<span id="cb3-142"><a href="#cb3-142" aria-hidden="true" tabindex="-1"></a>                      uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-143"><a href="#cb3-143" aria-hidden="true" tabindex="-1"></a>                      iVar2 <span class="op">=</span> greater_than_compare<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-144"><a href="#cb3-144" aria-hidden="true" tabindex="-1"></a>                      <span class="cf">if</span> <span class="op">(</span>iVar2 <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-145"><a href="#cb3-145" aria-hidden="true" tabindex="-1"></a>                        rip <span class="op">=</span> rip <span class="op">+</span> <span class="bn">0xb</span><span class="op">;</span></span>
+<span id="cb3-146"><a href="#cb3-146" aria-hidden="true" tabindex="-1"></a>                      <span class="op">}</span></span>
+<span id="cb3-147"><a href="#cb3-147" aria-hidden="true" tabindex="-1"></a>                      <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-148"><a href="#cb3-148" aria-hidden="true" tabindex="-1"></a>                        rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-149"><a href="#cb3-149" aria-hidden="true" tabindex="-1"></a>                      <span class="op">}</span></span>
+<span id="cb3-150"><a href="#cb3-150" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb3-151"><a href="#cb3-151" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x3a</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-152"><a href="#cb3-152" aria-hidden="true" tabindex="-1"></a>                      <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x38</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-153"><a href="#cb3-153" aria-hidden="true" tabindex="-1"></a>                        lVar7 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-154"><a href="#cb3-154" aria-hidden="true" tabindex="-1"></a>                        rip <span class="op">=</span> lVar7 <span class="op">+</span> rip<span class="op">;</span></span>
+<span id="cb3-155"><a href="#cb3-155" aria-hidden="true" tabindex="-1"></a>                      <span class="op">}</span></span>
+<span id="cb3-156"><a href="#cb3-156" aria-hidden="true" tabindex="-1"></a>                      <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x39</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-157"><a href="#cb3-157" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x23</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-158"><a href="#cb3-158" aria-hidden="true" tabindex="-1"></a>                          uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-159"><a href="#cb3-159" aria-hidden="true" tabindex="-1"></a>                          uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-160"><a href="#cb3-160" aria-hidden="true" tabindex="-1"></a>                          uVar5 <span class="op">=</span> read_qword_le<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-161"><a href="#cb3-161" aria-hidden="true" tabindex="-1"></a>                          store_qword<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-162"><a href="#cb3-162" aria-hidden="true" tabindex="-1"></a>                          rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">10</span><span class="op">;</span></span>
+<span id="cb3-163"><a href="#cb3-163" aria-hidden="true" tabindex="-1"></a>                        <span class="op">}</span></span>
+<span id="cb3-164"><a href="#cb3-164" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x24</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-165"><a href="#cb3-165" aria-hidden="true" tabindex="-1"></a>                          <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x22</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-166"><a href="#cb3-166" aria-hidden="true" tabindex="-1"></a>                            uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-167"><a href="#cb3-167" aria-hidden="true" tabindex="-1"></a>                            plVar3 <span class="op">=</span> <span class="op">(</span><span class="dt">long</span> <span class="op">*)</span>get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-168"><a href="#cb3-168" aria-hidden="true" tabindex="-1"></a>                            iVar2 <span class="op">=</span> FUN_001016f3<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-169"><a href="#cb3-169" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">if</span> <span class="op">(</span>plVar3 <span class="op">==</span> <span class="op">&amp;</span>local_5e08<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-170"><a href="#cb3-170" aria-hidden="true" tabindex="-1"></a>                              <span class="cf">for</span> <span class="op">(</span>local_5ffc <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> local_5ffc <span class="op">&lt;</span> param_3<span class="op">;</span> local_5ffc <span class="op">=</span> local_5ffc <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb3-171"><a href="#cb3-171" aria-hidden="true" tabindex="-1"></a>                                  <span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-172"><a href="#cb3-172" aria-hidden="true" tabindex="-1"></a>                                <span class="cf">if</span> <span class="op">(</span>iVar2 <span class="op">==</span> <span class="op">*(</span><span class="dt">int</span> <span class="op">*)(</span>buf1 <span class="op">+</span> <span class="op">(</span><span class="dt">long</span><span class="op">)</span>local_5ffc <span class="op">*</span> <span class="dv">4</span><span class="op">))</span> <span class="op">{</span></span>
+<span id="cb3-173"><a href="#cb3-173" aria-hidden="true" tabindex="-1"></a>                                  local_5e08 <span class="op">=</span> <span class="op">*(</span><span class="dt">long</span> <span class="op">*)(</span>buf2 <span class="op">+</span> <span class="op">(</span><span class="dt">long</span><span class="op">)</span>local_5ffc <span class="op">*</span> <span class="dv">8</span><span class="op">);</span></span>
+<span id="cb3-174"><a href="#cb3-174" aria-hidden="true" tabindex="-1"></a>                                <span class="op">}</span></span>
+<span id="cb3-175"><a href="#cb3-175" aria-hidden="true" tabindex="-1"></a>                              <span class="op">}</span></span>
+<span id="cb3-176"><a href="#cb3-176" aria-hidden="true" tabindex="-1"></a>                            <span class="op">}</span></span>
+<span id="cb3-177"><a href="#cb3-177" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb3-178"><a href="#cb3-178" aria-hidden="true" tabindex="-1"></a>                              store_dword<span class="op">(</span>plVar3<span class="op">,</span>iVar2<span class="op">);</span></span>
+<span id="cb3-179"><a href="#cb3-179" aria-hidden="true" tabindex="-1"></a>                            <span class="op">}</span></span>
+<span id="cb3-180"><a href="#cb3-180" aria-hidden="true" tabindex="-1"></a>                            rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">6</span><span class="op">;</span></span>
+<span id="cb3-181"><a href="#cb3-181" aria-hidden="true" tabindex="-1"></a>                          <span class="op">}</span></span>
+<span id="cb3-182"><a href="#cb3-182" aria-hidden="true" tabindex="-1"></a>                          <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x23</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-183"><a href="#cb3-183" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x21</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-184"><a href="#cb3-184" aria-hidden="true" tabindex="-1"></a>                              uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-185"><a href="#cb3-185" aria-hidden="true" tabindex="-1"></a>                              uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-186"><a href="#cb3-186" aria-hidden="true" tabindex="-1"></a>                              uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-187"><a href="#cb3-187" aria-hidden="true" tabindex="-1"></a>                              store_byte<span class="op">(</span>uVar4<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-188"><a href="#cb3-188" aria-hidden="true" tabindex="-1"></a>                              rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-189"><a href="#cb3-189" aria-hidden="true" tabindex="-1"></a>                            <span class="op">}</span></span>
+<span id="cb3-190"><a href="#cb3-190" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x22</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-191"><a href="#cb3-191" aria-hidden="true" tabindex="-1"></a>                              <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x20</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-192"><a href="#cb3-192" aria-hidden="true" tabindex="-1"></a>                                uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-193"><a href="#cb3-193" aria-hidden="true" tabindex="-1"></a>                                uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-194"><a href="#cb3-194" aria-hidden="true" tabindex="-1"></a>                                uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-195"><a href="#cb3-195" aria-hidden="true" tabindex="-1"></a>                                uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-196"><a href="#cb3-196" aria-hidden="true" tabindex="-1"></a>                                copy_register<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-197"><a href="#cb3-197" aria-hidden="true" tabindex="-1"></a>                                rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-198"><a href="#cb3-198" aria-hidden="true" tabindex="-1"></a>                              <span class="op">}</span></span>
+<span id="cb3-199"><a href="#cb3-199" aria-hidden="true" tabindex="-1"></a>                              <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x21</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-200"><a href="#cb3-200" aria-hidden="true" tabindex="-1"></a>                                <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x19</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-201"><a href="#cb3-201" aria-hidden="true" tabindex="-1"></a>                                  uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-202"><a href="#cb3-202" aria-hidden="true" tabindex="-1"></a>                                  puVar6 <span class="op">=</span> <span class="op">(</span>undefined8 <span class="op">*)</span>get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-203"><a href="#cb3-203" aria-hidden="true" tabindex="-1"></a>                                  uVar4 <span class="op">=</span> stack_pop_wrapper<span class="op">(</span>heap<span class="op">);</span></span>
+<span id="cb3-204"><a href="#cb3-204" aria-hidden="true" tabindex="-1"></a>                                  <span class="op">*</span>puVar6 <span class="op">=</span> uVar4<span class="op">;</span></span>
+<span id="cb3-205"><a href="#cb3-205" aria-hidden="true" tabindex="-1"></a>                                  rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">2</span><span class="op">;</span></span>
+<span id="cb3-206"><a href="#cb3-206" aria-hidden="true" tabindex="-1"></a>                                <span class="op">}</span></span>
+<span id="cb3-207"><a href="#cb3-207" aria-hidden="true" tabindex="-1"></a>                                <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x1a</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-208"><a href="#cb3-208" aria-hidden="true" tabindex="-1"></a>                                  <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x18</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-209"><a href="#cb3-209" aria-hidden="true" tabindex="-1"></a>                                    uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-210"><a href="#cb3-210" aria-hidden="true" tabindex="-1"></a>                                    uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-211"><a href="#cb3-211" aria-hidden="true" tabindex="-1"></a>                                    stack_push_wrapper<span class="op">(</span>heap<span class="op">,</span>uVar4<span class="op">);</span></span>
+<span id="cb3-212"><a href="#cb3-212" aria-hidden="true" tabindex="-1"></a>                                    rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">2</span><span class="op">;</span></span>
+<span id="cb3-213"><a href="#cb3-213" aria-hidden="true" tabindex="-1"></a>                                  <span class="op">}</span></span>
+<span id="cb3-214"><a href="#cb3-214" aria-hidden="true" tabindex="-1"></a>                                  <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x19</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-215"><a href="#cb3-215" aria-hidden="true" tabindex="-1"></a>                                    <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x17</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-216"><a href="#cb3-216" aria-hidden="true" tabindex="-1"></a>                                      uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-217"><a href="#cb3-217" aria-hidden="true" tabindex="-1"></a>                                      uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-218"><a href="#cb3-218" aria-hidden="true" tabindex="-1"></a>                                      uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-219"><a href="#cb3-219" aria-hidden="true" tabindex="-1"></a>                                      uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-220"><a href="#cb3-220" aria-hidden="true" tabindex="-1"></a>                                      bitwise_xor_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-221"><a href="#cb3-221" aria-hidden="true" tabindex="-1"></a>                                      rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-222"><a href="#cb3-222" aria-hidden="true" tabindex="-1"></a>                                    <span class="op">}</span></span>
+<span id="cb3-223"><a href="#cb3-223" aria-hidden="true" tabindex="-1"></a>                                    <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x18</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-224"><a href="#cb3-224" aria-hidden="true" tabindex="-1"></a>                                      <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x16</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-225"><a href="#cb3-225" aria-hidden="true" tabindex="-1"></a>                                        uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-226"><a href="#cb3-226" aria-hidden="true" tabindex="-1"></a>                                        uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-227"><a href="#cb3-227" aria-hidden="true" tabindex="-1"></a>                                        uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-228"><a href="#cb3-228" aria-hidden="true" tabindex="-1"></a>                                        uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-229"><a href="#cb3-229" aria-hidden="true" tabindex="-1"></a>                                        bitwise_and_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-230"><a href="#cb3-230" aria-hidden="true" tabindex="-1"></a>                                        rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-231"><a href="#cb3-231" aria-hidden="true" tabindex="-1"></a>                                      <span class="op">}</span></span>
+<span id="cb3-232"><a href="#cb3-232" aria-hidden="true" tabindex="-1"></a>                                      <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x17</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-233"><a href="#cb3-233" aria-hidden="true" tabindex="-1"></a>                                        <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x15</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-234"><a href="#cb3-234" aria-hidden="true" tabindex="-1"></a>                                          uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-235"><a href="#cb3-235" aria-hidden="true" tabindex="-1"></a>                                          uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-236"><a href="#cb3-236" aria-hidden="true" tabindex="-1"></a>                                          uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-237"><a href="#cb3-237" aria-hidden="true" tabindex="-1"></a>                                          uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-238"><a href="#cb3-238" aria-hidden="true" tabindex="-1"></a>                                          bitwise_or_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-239"><a href="#cb3-239" aria-hidden="true" tabindex="-1"></a>                                          rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-240"><a href="#cb3-240" aria-hidden="true" tabindex="-1"></a>                                        <span class="op">}</span></span>
+<span id="cb3-241"><a href="#cb3-241" aria-hidden="true" tabindex="-1"></a>                                        <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x16</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-242"><a href="#cb3-242" aria-hidden="true" tabindex="-1"></a>                                          <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x14</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-243"><a href="#cb3-243" aria-hidden="true" tabindex="-1"></a>                                            uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-244"><a href="#cb3-244" aria-hidden="true" tabindex="-1"></a>                                            uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-245"><a href="#cb3-245" aria-hidden="true" tabindex="-1"></a>                                            uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-246"><a href="#cb3-246" aria-hidden="true" tabindex="-1"></a>                                            uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-247"><a href="#cb3-247" aria-hidden="true" tabindex="-1"></a>                                            float_div_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-248"><a href="#cb3-248" aria-hidden="true" tabindex="-1"></a>                                            rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-249"><a href="#cb3-249" aria-hidden="true" tabindex="-1"></a>                                          <span class="op">}</span></span>
+<span id="cb3-250"><a href="#cb3-250" aria-hidden="true" tabindex="-1"></a>                                          <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x15</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-251"><a href="#cb3-251" aria-hidden="true" tabindex="-1"></a>                                            <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x13</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-252"><a href="#cb3-252" aria-hidden="true" tabindex="-1"></a>                                              uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-253"><a href="#cb3-253" aria-hidden="true" tabindex="-1"></a>                                              uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-254"><a href="#cb3-254" aria-hidden="true" tabindex="-1"></a>                                              uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-255"><a href="#cb3-255" aria-hidden="true" tabindex="-1"></a>                                              uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-256"><a href="#cb3-256" aria-hidden="true" tabindex="-1"></a>                                              modulo <span class="op">=</span> div_mod_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-257"><a href="#cb3-257" aria-hidden="true" tabindex="-1"></a>                                              rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-258"><a href="#cb3-258" aria-hidden="true" tabindex="-1"></a>                                            <span class="op">}</span></span>
+<span id="cb3-259"><a href="#cb3-259" aria-hidden="true" tabindex="-1"></a>                                            <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x14</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-260"><a href="#cb3-260" aria-hidden="true" tabindex="-1"></a>                                              <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x12</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-261"><a href="#cb3-261" aria-hidden="true" tabindex="-1"></a>                                                uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-262"><a href="#cb3-262" aria-hidden="true" tabindex="-1"></a>                                                uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-263"><a href="#cb3-263" aria-hidden="true" tabindex="-1"></a>                                                uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-264"><a href="#cb3-264" aria-hidden="true" tabindex="-1"></a>                                                uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-265"><a href="#cb3-265" aria-hidden="true" tabindex="-1"></a>                                                mul_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-266"><a href="#cb3-266" aria-hidden="true" tabindex="-1"></a>                                                rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-267"><a href="#cb3-267" aria-hidden="true" tabindex="-1"></a>                                              <span class="op">}</span></span>
+<span id="cb3-268"><a href="#cb3-268" aria-hidden="true" tabindex="-1"></a>                                              <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">&lt;</span> <span class="bn">0x13</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-269"><a href="#cb3-269" aria-hidden="true" tabindex="-1"></a>                                                <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x10</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-270"><a href="#cb3-270" aria-hidden="true" tabindex="-1"></a>                                                  uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-271"><a href="#cb3-271" aria-hidden="true" tabindex="-1"></a>                                                  uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-272"><a href="#cb3-272" aria-hidden="true" tabindex="-1"></a>                                                  uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-273"><a href="#cb3-273" aria-hidden="true" tabindex="-1"></a>                                                  uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-274"><a href="#cb3-274" aria-hidden="true" tabindex="-1"></a>                                                  add_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-275"><a href="#cb3-275" aria-hidden="true" tabindex="-1"></a>                                                  rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-276"><a href="#cb3-276" aria-hidden="true" tabindex="-1"></a>                                                <span class="op">}</span></span>
+<span id="cb3-277"><a href="#cb3-277" aria-hidden="true" tabindex="-1"></a>                                                <span class="cf">else</span> <span class="cf">if</span> <span class="op">(</span>opcode <span class="op">==</span> <span class="bn">0x11</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-278"><a href="#cb3-278" aria-hidden="true" tabindex="-1"></a>                                                  uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,</span>iVar2 <span class="op">+</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-279"><a href="#cb3-279" aria-hidden="true" tabindex="-1"></a>                                                  uVar4 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-280"><a href="#cb3-280" aria-hidden="true" tabindex="-1"></a>                                                  uVar1 <span class="op">=</span> read_byte<span class="op">(</span>param_4<span class="op">,(</span><span class="dt">int</span><span class="op">)</span>rip <span class="op">+</span> <span class="dv">2</span><span class="op">);</span></span>
+<span id="cb3-281"><a href="#cb3-281" aria-hidden="true" tabindex="-1"></a>                                                  uVar5 <span class="op">=</span> get_register_pointer<span class="op">(</span>registers<span class="op">,</span>uVar1<span class="op">);</span></span>
+<span id="cb3-282"><a href="#cb3-282" aria-hidden="true" tabindex="-1"></a>                                                  sub_operation<span class="op">(</span>uVar4<span class="op">,</span>uVar5<span class="op">);</span></span>
+<span id="cb3-283"><a href="#cb3-283" aria-hidden="true" tabindex="-1"></a>                                                  rip <span class="op">=</span> rip <span class="op">+</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb3-284"><a href="#cb3-284" aria-hidden="true" tabindex="-1"></a>                                                <span class="op">}</span></span>
+<span id="cb3-285"><a href="#cb3-285" aria-hidden="true" tabindex="-1"></a>                                              <span class="op">}</span></span>
+<span id="cb3-286"><a href="#cb3-286" aria-hidden="true" tabindex="-1"></a>                                            <span class="op">}</span></span>
+<span id="cb3-287"><a href="#cb3-287" aria-hidden="true" tabindex="-1"></a>                                          <span class="op">}</span></span>
+<span id="cb3-288"><a href="#cb3-288" aria-hidden="true" tabindex="-1"></a>                                        <span class="op">}</span></span>
+<span id="cb3-289"><a href="#cb3-289" aria-hidden="true" tabindex="-1"></a>                                      <span class="op">}</span></span>
+<span id="cb3-290"><a href="#cb3-290" aria-hidden="true" tabindex="-1"></a>                                    <span class="op">}</span></span>
+<span id="cb3-291"><a href="#cb3-291" aria-hidden="true" tabindex="-1"></a>                                  <span class="op">}</span></span>
+<span id="cb3-292"><a href="#cb3-292" aria-hidden="true" tabindex="-1"></a>                                <span class="op">}</span></span>
+<span id="cb3-293"><a href="#cb3-293" aria-hidden="true" tabindex="-1"></a>                              <span class="op">}</span></span>
+<span id="cb3-294"><a href="#cb3-294" aria-hidden="true" tabindex="-1"></a>                            <span class="op">}</span></span>
+<span id="cb3-295"><a href="#cb3-295" aria-hidden="true" tabindex="-1"></a>                          <span class="op">}</span></span>
+<span id="cb3-296"><a href="#cb3-296" aria-hidden="true" tabindex="-1"></a>                        <span class="op">}</span></span>
+<span id="cb3-297"><a href="#cb3-297" aria-hidden="true" tabindex="-1"></a>                      <span class="op">}</span></span>
+<span id="cb3-298"><a href="#cb3-298" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb3-299"><a href="#cb3-299" aria-hidden="true" tabindex="-1"></a>                  <span class="op">}</span></span>
+<span id="cb3-300"><a href="#cb3-300" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb3-301"><a href="#cb3-301" aria-hidden="true" tabindex="-1"></a>              <span class="op">}</span></span>
+<span id="cb3-302"><a href="#cb3-302" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb3-303"><a href="#cb3-303" aria-hidden="true" tabindex="-1"></a>          <span class="op">}</span></span>
+<span id="cb3-304"><a href="#cb3-304" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb3-305"><a href="#cb3-305" aria-hidden="true" tabindex="-1"></a>      <span class="op">}</span></span>
+<span id="cb3-306"><a href="#cb3-306" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-307"><a href="#cb3-307" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb3-308"><a href="#cb3-308" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="op">(</span>canary <span class="op">==</span> <span class="op">*(</span><span class="dt">long</span> <span class="op">*)(</span>in_FS_OFFSET <span class="op">+</span> <span class="bn">0x28</span><span class="op">))</span> <span class="op">{</span></span>
+<span id="cb3-309"><a href="#cb3-309" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span><span class="op">;</span></span>
+<span id="cb3-310"><a href="#cb3-310" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb3-311"><a href="#cb3-311" aria-hidden="true" tabindex="-1"></a>                    <span class="co">/* </span><span class="al">WARNING</span><span class="co">: Subroutine does not return */</span></span>
+<span id="cb3-312"><a href="#cb3-312" aria-hidden="true" tabindex="-1"></a>  __stack_chk_fail<span class="op">();</span></span>
+<span id="cb3-313"><a href="#cb3-313" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>The VM uses a register file, a stack and a second memory space (which
+I labeled as heap-stuff lol). There is also a custom syscall table which
+you can find in my disassembler.</p>
+<h3 id="disassembler">Disassembler</h3>
+<p>In order to solve this, I created a segment parser and disassembler
+in python. Initially I tasked Claude to do it but the result sucked so I
+turned to writing much of it myself, leaving just the laborious parts to
+the LLM. I used u32 and u64 from the pwntools library for unpacking the
+data.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pwn <span class="im">import</span> u32, u64</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_register_pointer(param_2):</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    registers <span class="op">=</span> [</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">&#39;r0&#39;</span>, <span class="st">&#39;r1&#39;</span>, <span class="st">&#39;r2&#39;</span>, <span class="st">&#39;r3&#39;</span>, <span class="st">&#39;r4&#39;</span>, <span class="st">&#39;r5&#39;</span>, <span class="st">&#39;r6&#39;</span>, <span class="st">&#39;r7&#39;</span>, <span class="st">&#39;r8&#39;</span>, <span class="st">&#39;r9&#39;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">&#39;r10&#39;</span>, <span class="st">&#39;r11&#39;</span>, <span class="st">&#39;r12&#39;</span>, <span class="st">&#39;r13&#39;</span>, <span class="st">&#39;r14&#39;</span>, <span class="st">&#39;r15&#39;</span>, <span class="st">&#39;r16&#39;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    value_to_index <span class="op">=</span> {</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x41</span>: <span class="dv">0</span>,  <span class="co"># 65</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x42</span>: <span class="dv">1</span>,  <span class="co"># 66</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x43</span>: <span class="dv">2</span>,  <span class="co"># 67</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x44</span>: <span class="dv">3</span>,  <span class="co"># 68</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x45</span>: <span class="dv">4</span>,  <span class="co"># 69</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x46</span>: <span class="dv">5</span>,  <span class="co"># 70</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x47</span>: <span class="dv">6</span>,  <span class="co"># 71</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x48</span>: <span class="dv">7</span>,  <span class="co"># 72</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x49</span>: <span class="dv">8</span>,  <span class="co"># 73</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x4a</span>: <span class="dv">9</span>,  <span class="co"># 74</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x4b</span>: <span class="dv">10</span>, <span class="co"># 75</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x4c</span>: <span class="dv">11</span>, <span class="co"># 76</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x4d</span>: <span class="dv">12</span>, <span class="co"># 77</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x4e</span>: <span class="dv">13</span>, <span class="co"># 78</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x4f</span>: <span class="dv">14</span>, <span class="co"># 79</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x50</span>: <span class="dv">15</span>, <span class="co"># 80</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x60</span>: <span class="dv">16</span>, <span class="co"># 96</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x61</span>: <span class="dv">0</span>,  <span class="co"># 97</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x62</span>: <span class="dv">1</span>,  <span class="co"># 98</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x63</span>: <span class="dv">2</span>,  <span class="co"># 99</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x64</span>: <span class="dv">3</span>,  <span class="co"># 100</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x65</span>: <span class="dv">4</span>,  <span class="co"># 101</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x66</span>: <span class="dv">5</span>,  <span class="co"># 102</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x67</span>: <span class="dv">6</span>,  <span class="co"># 103</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x68</span>: <span class="dv">7</span>,  <span class="co"># 104</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x69</span>: <span class="dv">8</span>,  <span class="co"># 105</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x6a</span>: <span class="dv">9</span>,  <span class="co"># 106</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x6b</span>: <span class="dv">10</span>, <span class="co"># 107</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x6c</span>: <span class="dv">11</span>, <span class="co"># 108</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x6d</span>: <span class="dv">12</span>, <span class="co"># 109</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x6e</span>: <span class="dv">13</span>, <span class="co"># 110</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x6f</span>: <span class="dv">14</span>, <span class="co"># 111</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x70</span>: <span class="dv">15</span>, <span class="co"># 112</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        <span class="bn">0x71</span>: <span class="dv">16</span>  <span class="co"># 113</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> registers[value_to_index[param_2]] <span class="cf">if</span> param_2 <span class="kw">in</span> value_to_index <span class="cf">else</span> <span class="va">None</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> segment:</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, size, data):</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.size <span class="op">=</span> size</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.data <span class="op">=</span> data</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a><span class="bu">file</span> <span class="op">=</span> <span class="st">b&quot;&quot;</span></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="bu">open</span>(<span class="st">&#39;chall.sad&#39;</span>, <span class="st">&#39;rb&#39;</span>) <span class="im">as</span> f:</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>    <span class="bu">file</span> <span class="op">=</span> f.read()</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>sys <span class="op">=</span> {</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>    <span class="dv">1</span>: <span class="st">&#39;puts()&#39;</span>,</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span>: <span class="st">&#39;fopen()&#39;</span>,</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>    <span class="dv">3</span>: <span class="st">&#39;fread()&#39;</span>,</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>    <span class="dv">4</span>: <span class="st">&#39;fwrite()&#39;</span>,</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>    <span class="dv">5</span>: <span class="st">&#39;fclose()&#39;</span>,</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>    <span class="dv">6</span>: <span class="st">&#39;malloc()&#39;</span>,</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>    <span class="dv">7</span>: <span class="st">&#39;memset()&#39;</span>,</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>    <span class="dv">8</span>: <span class="st">&#39;ftell()&#39;</span>,</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>    <span class="dv">9</span>: <span class="st">&#39;Error ?&#39;</span></span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>ins <span class="op">=</span> {</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x10</span>: <span class="st">&quot;ADD&quot;</span>,         <span class="co"># reg, reg</span></span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x11</span>: <span class="st">&quot;SUB&quot;</span>,         <span class="co"># reg, reg</span></span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x12</span>: <span class="st">&quot;MUL&quot;</span>,         <span class="co"># reg, reg</span></span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x13</span>: <span class="st">&quot;DIV&quot;</span>,         <span class="co"># reg, reg</span></span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x14</span>: <span class="st">&quot;FLOAT_DIV&quot;</span>,   <span class="co"># reg, reg</span></span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x15</span>: <span class="st">&quot;OR&quot;</span>,          <span class="co"># reg, reg</span></span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x16</span>: <span class="st">&quot;AND&quot;</span>,         <span class="co"># reg, reg</span></span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x17</span>: <span class="st">&quot;XOR&quot;</span>,         <span class="co"># reg, reg</span></span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x18</span>: <span class="st">&quot;PUSH&quot;</span>,        <span class="co"># reg</span></span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x19</span>: <span class="st">&quot;POP&quot;</span>,         <span class="co"># reg</span></span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x20</span>: <span class="st">&quot;MOV&quot;</span>,         <span class="co"># reg, reg</span></span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x21</span>: <span class="st">&quot;MOVB&quot;</span>,        <span class="co"># reg, byte</span></span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x22</span>: <span class="st">&quot;MOVW&quot;</span>,        <span class="co"># reg, dword</span></span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x23</span>: <span class="st">&quot;MOVQ&quot;</span>,        <span class="co"># reg, qword</span></span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x38</span>: <span class="st">&quot;JMP&quot;</span>,         <span class="co"># qword (offset)</span></span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x39</span>: <span class="st">&quot;JG&quot;</span>,          <span class="co"># qword, reg, reg (unknown comparison)</span></span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x3A</span>: <span class="st">&quot;JL&quot;</span>,          <span class="co"># qword, reg, reg (jump if less than)</span></span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x3B</span>: <span class="st">&quot;JGE&quot;</span>,         <span class="co"># qword, reg, reg (jump if greater equal)</span></span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x3C</span>: <span class="st">&quot;JLE&quot;</span>,         <span class="co"># qword, reg, reg (jump if less equal)</span></span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x3D</span>: <span class="st">&quot;JE&quot;</span>,          <span class="co"># qword, reg, reg (jump if equal)</span></span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x3E</span>: <span class="st">&quot;JNE&quot;</span>,         <span class="co"># qword, reg, reg (jump if not equal)</span></span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x3F</span>: <span class="st">&quot;CALL&quot;</span>,        <span class="co"># qword (offset)</span></span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x40</span>: <span class="st">&quot;RET&quot;</span>,         <span class="co"># no operands</span></span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>    <span class="bn">0x99</span>: <span class="st">&quot;SYSCALL&quot;</span>,     <span class="co"># byte (syscall number)</span></span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_instruction_size(opcode):</span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> opcode <span class="op">==</span> <span class="bn">0x40</span>:</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">1</span></span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> opcode <span class="kw">in</span> [<span class="bn">0x99</span>, <span class="bn">0x18</span>, <span class="bn">0x19</span>]:</span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">2</span></span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> opcode <span class="kw">in</span> [<span class="bn">0x20</span>, <span class="bn">0x21</span>] <span class="kw">or</span> (<span class="bn">0x10</span> <span class="op">&lt;=</span> opcode <span class="op">&lt;=</span> <span class="bn">0x17</span>):</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">3</span></span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> opcode <span class="op">==</span> <span class="bn">0x22</span>:</span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">6</span></span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> opcode <span class="op">==</span> <span class="bn">0x23</span>:</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">10</span></span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> <span class="bn">0x39</span> <span class="op">&lt;=</span> opcode <span class="op">&lt;=</span> <span class="bn">0x3E</span>:</span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">11</span></span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> disassemble(bytecode):</span>
+<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>    address <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> bytecode <span class="op">!=</span> <span class="st">b&quot;&quot;</span>:</span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>        op <span class="op">=</span> bytecode[<span class="dv">0</span>]</span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>        <span class="co">#print(f&quot;op = {op}&quot;)</span></span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>        size <span class="op">=</span> get_instruction_size(op)</span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>        <span class="co">#print(f&quot;size = {size}&quot;)</span></span>
+<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a>        instruction <span class="op">=</span> bytecode[:size]</span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> ins[op] <span class="kw">in</span> [<span class="st">&quot;ADD&quot;</span>, <span class="st">&quot;XOR&quot;</span>, <span class="st">&quot;OR&quot;</span>, <span class="st">&quot;AND&quot;</span>, <span class="st">&quot;MUL&quot;</span>, <span class="st">&quot;SUB&quot;</span>, <span class="st">&quot;MOV&quot;</span>, <span class="st">&quot;DIV&quot;</span>]:</span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f&quot;  </span><span class="sc">{</span>address<span class="sc">:04x}</span><span class="ss">: </span><span class="sc">{</span>ins[op]<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>get_register_pointer(instruction[<span class="dv">1</span>])<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span>get_register_pointer(instruction[<span class="dv">2</span>])<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elif</span> ins[op] <span class="kw">in</span> [<span class="st">&quot;JL&quot;</span>, <span class="st">&quot;JG&quot;</span>, <span class="st">&quot;JGE&quot;</span>, <span class="st">&quot;JLE&quot;</span>, <span class="st">&quot;JE&quot;</span>, <span class="st">&quot;JNE&quot;</span>]:</span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f&quot;  </span><span class="sc">{</span>address<span class="sc">:04x}</span><span class="ss">: </span><span class="sc">{</span>ins[op]<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>get_register_pointer(instruction[<span class="op">-</span><span class="dv">1</span>])<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span>get_register_pointer(instruction[<span class="op">-</span><span class="dv">2</span>])<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span><span class="bu">hex</span>(u64(instruction[<span class="dv">1</span>:<span class="op">-</span><span class="dv">2</span>]))<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elif</span> ins[op] <span class="kw">in</span> [<span class="st">&quot;MOVB&quot;</span>, <span class="st">&quot;MOVQ&quot;</span>, <span class="st">&quot;MOVW&quot;</span>]:</span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f&quot;  </span><span class="sc">{</span>address<span class="sc">:04x}</span><span class="ss">: </span><span class="sc">{</span>ins[op]<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>get_register_pointer(instruction[<span class="dv">1</span>])<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span>instruction[<span class="dv">2</span>:]<span class="sc">.</span><span class="bu">hex</span>()<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elif</span> ins[op] <span class="kw">in</span> [<span class="st">&quot;POP&quot;</span>, <span class="st">&quot;PUSH&quot;</span>]:</span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f&quot;  </span><span class="sc">{</span>address<span class="sc">:04x}</span><span class="ss">: </span><span class="sc">{</span>ins[op]<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>get_register_pointer(instruction[<span class="dv">1</span>])<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elif</span> ins[op] <span class="op">==</span> <span class="st">&quot;SYSCALL&quot;</span>:</span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>            no <span class="op">=</span> instruction[<span class="dv">1</span>]</span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f&quot;  </span><span class="sc">{</span>address<span class="sc">:04x}</span><span class="ss">: </span><span class="sc">{</span>ins[op]<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>no<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span>sys[no]<span class="sc">}</span><span class="ss"> operation)</span><span class="ch">\n</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f&quot;  </span><span class="sc">{</span>address<span class="sc">:04x}</span><span class="ss">: </span><span class="sc">{</span>ins[op]<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>instruction[<span class="dv">1</span>:]<span class="sc">.</span><span class="bu">hex</span>()<span class="sc">}</span><span class="ch">\n</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a>        bytecode <span class="op">=</span> bytecode[size:]</span>
+<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a>        address <span class="op">=</span> address <span class="op">+</span> size</span>
+<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a>i <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a>magic_bytes <span class="op">=</span> <span class="bu">file</span>[:<span class="dv">16</span>]</span>
+<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span><span class="dv">16</span></span>
+<span id="cb4-150"><a href="#cb4-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-151"><a href="#cb4-151" aria-hidden="true" tabindex="-1"></a>segments <span class="op">=</span> u32(<span class="bu">file</span>[<span class="dv">16</span>:<span class="dv">20</span>])</span>
+<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span><span class="dv">20</span></span>
+<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a>s1 <span class="op">=</span> segment(<span class="dv">0</span>, <span class="st">b&quot;&quot;</span>) </span>
+<span id="cb4-156"><a href="#cb4-156" aria-hidden="true" tabindex="-1"></a>s2 <span class="op">=</span> segment(<span class="dv">0</span>, <span class="st">b&quot;&quot;</span>) </span>
+<span id="cb4-157"><a href="#cb4-157" aria-hidden="true" tabindex="-1"></a>s3 <span class="op">=</span> segment(<span class="dv">0</span>, <span class="st">b&quot;&quot;</span>) </span>
+<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a>s4 <span class="op">=</span> segment(<span class="dv">0</span>, <span class="st">b&quot;&quot;</span>) </span>
+<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a><span class="co"># Segment 1</span></span>
+<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a>s1.size <span class="op">=</span> u32(<span class="bu">file</span>[i:i<span class="op">+</span><span class="dv">4</span>])</span>
+<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span><span class="dv">4</span></span>
+<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a>s1.data <span class="op">=</span> <span class="bu">file</span>[i:(s1.size<span class="op">+</span>i)]</span>
+<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span>s1.size</span>
+<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a><span class="co"># Segment 2</span></span>
+<span id="cb4-174"><a href="#cb4-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-175"><a href="#cb4-175" aria-hidden="true" tabindex="-1"></a>s2.size <span class="op">=</span> u32(<span class="bu">file</span>[i:i<span class="op">+</span><span class="dv">4</span>])</span>
+<span id="cb4-176"><a href="#cb4-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-177"><a href="#cb4-177" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span><span class="dv">4</span></span>
+<span id="cb4-178"><a href="#cb4-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-179"><a href="#cb4-179" aria-hidden="true" tabindex="-1"></a>s2.data <span class="op">=</span> <span class="bu">file</span>[i:(s2.size<span class="op">+</span>i)]</span>
+<span id="cb4-180"><a href="#cb4-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-181"><a href="#cb4-181" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span>s2.size</span>
+<span id="cb4-182"><a href="#cb4-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-183"><a href="#cb4-183" aria-hidden="true" tabindex="-1"></a><span class="co"># Segment 3</span></span>
+<span id="cb4-184"><a href="#cb4-184" aria-hidden="true" tabindex="-1"></a>s3.size <span class="op">=</span> u32(<span class="bu">file</span>[i:i<span class="op">+</span><span class="dv">4</span>])</span>
+<span id="cb4-185"><a href="#cb4-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-186"><a href="#cb4-186" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span><span class="dv">4</span></span>
+<span id="cb4-187"><a href="#cb4-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-188"><a href="#cb4-188" aria-hidden="true" tabindex="-1"></a>s3.data <span class="op">=</span> <span class="bu">file</span>[i:(s3.size<span class="op">+</span>i)]</span>
+<span id="cb4-189"><a href="#cb4-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-190"><a href="#cb4-190" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span>s3.size</span>
+<span id="cb4-191"><a href="#cb4-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-192"><a href="#cb4-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-193"><a href="#cb4-193" aria-hidden="true" tabindex="-1"></a><span class="co"># Segment 4</span></span>
+<span id="cb4-194"><a href="#cb4-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-195"><a href="#cb4-195" aria-hidden="true" tabindex="-1"></a>s4.size <span class="op">=</span> u32(<span class="bu">file</span>[i:i<span class="op">+</span><span class="dv">4</span>])</span>
+<span id="cb4-196"><a href="#cb4-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-197"><a href="#cb4-197" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span><span class="dv">4</span></span>
+<span id="cb4-198"><a href="#cb4-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-199"><a href="#cb4-199" aria-hidden="true" tabindex="-1"></a>s4.data <span class="op">=</span> <span class="bu">file</span>[i:(s4.size<span class="op">+</span>i)]</span>
+<span id="cb4-200"><a href="#cb4-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-201"><a href="#cb4-201" aria-hidden="true" tabindex="-1"></a>i<span class="op">=</span>i<span class="op">+</span>s4.size</span>
+<span id="cb4-202"><a href="#cb4-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-203"><a href="#cb4-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-204"><a href="#cb4-204" aria-hidden="true" tabindex="-1"></a>bytecode <span class="op">=</span> <span class="bu">file</span>[i:]</span>
+<span id="cb4-205"><a href="#cb4-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-206"><a href="#cb4-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-207"><a href="#cb4-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-208"><a href="#cb4-208" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Magic Bytes: </span><span class="sc">{</span>magic_bytes<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-209"><a href="#cb4-209" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Number of segments: </span><span class="sc">{</span>segments<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-210"><a href="#cb4-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-211"><a href="#cb4-211" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S1 size </span><span class="sc">{</span>s1<span class="sc">.</span>size<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-212"><a href="#cb4-212" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S1 data </span><span class="sc">{</span>s1<span class="sc">.</span>data<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-213"><a href="#cb4-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-214"><a href="#cb4-214" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S2 size </span><span class="sc">{</span>s2<span class="sc">.</span>size<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-215"><a href="#cb4-215" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S2 data </span><span class="sc">{</span>s2<span class="sc">.</span>data<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-216"><a href="#cb4-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-217"><a href="#cb4-217" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S3 size </span><span class="sc">{</span>s3<span class="sc">.</span>size<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-218"><a href="#cb4-218" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S3 data </span><span class="sc">{</span>s3<span class="sc">.</span>data<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-219"><a href="#cb4-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-220"><a href="#cb4-220" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S4 size </span><span class="sc">{</span>s4<span class="sc">.</span>size<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-221"><a href="#cb4-221" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;S4 data </span><span class="sc">{</span>s4<span class="sc">.</span>data<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-222"><a href="#cb4-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-223"><a href="#cb4-223" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Bytecode size: </span><span class="sc">{</span><span class="bu">len</span>(bytecode)<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb4-224"><a href="#cb4-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-225"><a href="#cb4-225" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;</span><span class="ch">\n\n</span><span class="st">++++++++++++ DISASSEMBLY ++++++++++++</span><span class="ch">\n\n</span><span class="st">&quot;</span>)</span>
+<span id="cb4-226"><a href="#cb4-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-227"><a href="#cb4-227" aria-hidden="true" tabindex="-1"></a>disassemble(bytecode)</span></code></pre></div>
+<h3 id="the-unintended">The unintended ;)</h3>
+<p>Now, I’m still a n00b reverser so writing a disassembler was not an
+easy task, it took a few hours. However, while writing it I was thinking
+about how the author generated the encrypted flag file. He must have ran
+a command like:</p>
+<p><code>./runner chall.sad ./catt ./catt.enc</code></p>
+<p>In this case <code>./catt</code> is the plain text flag. Then, an
+idea came to my mind: what if the encryption was symmetric and I just
+ran the binary on the catt.enc to encrypt it twice, basically decrypting
+it? Running
+<code>mv catt.enc catt &amp;&amp; ./runner chall.sad ./catt ./catt.enc</code>
+encrypts the file twice but no flag :( the encryption was not symmetric
+after all.</p>
+<p>But wait! Who says I can only encrypt the file twice? What if the
+encryption is not symmetric, but sort of “circles around”? So I made
+this very simple bash script to keep encrypting the file and look for
+the flag:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="bu">:</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="cf">do</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ex">./runner</span> ./chall.sad ./catt ./catt.enc</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">strings</span> ./catt.enc <span class="kw">|</span> <span class="fu">grep</span> grey</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> ./catt</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> ./catt.enc ./catt</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div>
+<p>The script didn’t give me the flag after a few seconds, so I just
+forgot about it and moved on with the disassembler. However, after a
+couple of hours I turned back to the terminal I left behind and saw this
+glorious view:</p>
+<pre><code>./try.sh
+grey{wHy_1_d0_th1s_To_myself_263fea308}
+grey{wHy_1_d0_th1s_To_myself_263fea308}
+grey{wHy_1_d0_th1s_To_myself_263fea308}
+grey{wHy_1_d0_th1s_To_myself_263fea308}
+grey{wHy_1_d0_th1s_To_myself_263fea308}
+grey{wHy_1_d0_th1s_To_myself_263fea308}
+grey{wHy_1_d0_th1s_To_myself_263fea308}</code></pre>
+<p>The script worked! The encryption does circle around!</p>
+<h3 id="the-disassembly">The Disassembly</h3>
+<p>After 2 hours of working on my solve.py (and before realizing I had
+already solved the challenge without knowing it) I managed to get a
+pretty good disassembly:</p>
+<h5 id="binary-segments-info">Binary Segments &amp; Info</h5>
+<pre><code>Magic Bytes: b&#39;SAD\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00&#39;
+Number of segments: 4
+
+
+S1 size 2
+S1 data b&#39;r\x00&#39;
+
+
+S2 size 2
+S2 data b&#39;w\x00&#39;
+
+
+S3 size 11
+S3 data b&#39;googoogaga\x00&#39;
+
+
+S4 size 5
+S4 data b&#39;sDda\x00&#39;
+
+
+Bytecode size: 463</code></pre>
+<h5 id="disassembly">Disassembly</h5>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode css"><code class="sourceCode css"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>  0000<span class="in">:</span> POP r1</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  0002<span class="in">:</span> POP r0</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  0004<span class="in">:</span> MOVB r2<span class="op">,</span> 00</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  0007<span class="in">:</span> PUSH r0</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  0009<span class="in">:</span> MOVW r16<span class="op">,</span> 14000000</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  000f<span class="in">:</span> PUSH r16</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  0011<span class="in">:</span> SYSCALL 2 <span class="in">(</span>fopen<span class="in">()</span> operation<span class="in">)</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  0013<span class="in">:</span> JE r2<span class="op">,</span> r0<span class="op">,</span> 0x1bb ; jump to EXIT</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  001e<span class="in">:</span> MOV r4<span class="op">,</span> r0</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  0021<span class="in">:</span> PUSH r1</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  0023<span class="in">:</span> MOVW r16<span class="op">,</span> 1a000000</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  0029<span class="in">:</span> PUSH r16</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  002b<span class="in">:</span> SYSCALL 2 <span class="in">(</span>fopen<span class="in">()</span> operation<span class="in">)</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  002d<span class="in">:</span> JE r2<span class="op">,</span> r0<span class="op">,</span> 0x1a1 ; jump to EXIT</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  0038<span class="in">:</span> MOV r5<span class="op">,</span> r0</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  003b<span class="in">:</span> PUSH r4</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  003d<span class="in">:</span> SYSCALL 8 <span class="in">(</span>ftell<span class="in">()</span> operation<span class="in">)</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  003f<span class="in">:</span> MOV r6<span class="op">,</span> r0</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  0042<span class="in">:</span> MOVB r0<span class="op">,</span> 02</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>  0045<span class="in">:</span> PUSH r0</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  0047<span class="in">:</span> SYSCALL 6 <span class="in">(</span>malloc<span class="in">()</span> operation<span class="in">)</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  0049<span class="in">:</span> JE r2<span class="op">,</span> r0<span class="op">,</span> 0x185 ; jump to EXIT</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>  0054<span class="in">:</span> MOV r7<span class="op">,</span> r0</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  0057<span class="in">:</span> MOVW r16<span class="op">,</span> 2f000000</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  005d<span class="in">:</span> PUSH r16</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  005f<span class="in">:</span> POP r8</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  0061<span class="in">:</span> MOVQ r10<span class="op">,</span> 0000000000000000</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>LOOP<span class="in">:</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>  006b<span class="in">:</span> PUSH r7</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>  006d<span class="in">:</span> MOVQ r0<span class="op">,</span> 0200000000000000</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>  0077<span class="in">:</span> PUSH r0</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>  0079<span class="in">:</span> PUSH r4</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>  007b<span class="in">:</span> SYSCALL 3 <span class="in">(</span>fread<span class="in">()</span> operation<span class="in">)</span></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>  007d<span class="in">:</span> MOVQ r1<span class="op">,</span> 0200000000000000</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>  0087<span class="in">:</span> JNE r1<span class="op">,</span> r0<span class="op">,</span> 0x147</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>  0092<span class="in">:</span> MOV r15<span class="op">,</span> r8</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>  0095<span class="in">:</span> MOV r11<span class="op">,</span> r15</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>  0098<span class="in">:</span> MOVB r1<span class="op">,</span> 01</span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>  009b<span class="in">:</span> ADD r15<span class="op">,</span> r1</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>  009e<span class="in">:</span> MOV r12<span class="op">,</span> r15</span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>  00a1<span class="in">:</span> ADD r15<span class="op">,</span> r1</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>  00a4<span class="in">:</span> MOV r13<span class="op">,</span> r15</span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>  00a7<span class="in">:</span> ADD r15<span class="op">,</span> r1</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>  00aa<span class="in">:</span> MOV r14<span class="op">,</span> r15</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>  00ad<span class="in">:</span> MOV r15<span class="op">,</span> r7</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>  00b0<span class="in">:</span> ADD r15<span class="op">,</span> r1</span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>  00b3<span class="in">:</span> MOV r0<span class="op">,</span> r7</span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>  00b6<span class="in">:</span> MOV r1<span class="op">,</span> r15</span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>  00b9<span class="in">:</span> MOVQ r2<span class="op">,</span> ff00000000000000</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>  00c3<span class="in">:</span> AND r11<span class="op">,</span> r2</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>  00c6<span class="in">:</span> AND r0<span class="op">,</span> r2</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>  00c9<span class="in">:</span> MUL r0<span class="op">,</span> r11</span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>  00cc<span class="in">:</span> AND r12<span class="op">,</span> r2</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>  00cf<span class="in">:</span> MUL r1<span class="op">,</span> r12</span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>  00d2<span class="in">:</span> ADD r0<span class="op">,</span> r1</span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>  00d5<span class="in">:</span> MOVQ r2<span class="op">,</span> 0001000000000000</span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>  00df<span class="in">:</span> DIV r0<span class="op">,</span> r2</span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a>  00e2<span class="in">:</span> MOV r0<span class="op">,</span> r2</span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>  00e5<span class="in">:</span> MOVW r16<span class="op">,</span> 20000000</span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a>  00eb<span class="in">:</span> PUSH r16</span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>  00ed<span class="in">:</span> POP r3</span>
+<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a>  00ef<span class="in">:</span> ADD r3<span class="op">,</span> r10</span>
+<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a>  00f2<span class="in">:</span> MOV r3<span class="op">,</span> r3</span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a>  00f5<span class="in">:</span> MOVQ r2<span class="op">,</span> ff00000000000000</span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a>  00ff<span class="in">:</span> AND r3<span class="op">,</span> r2</span>
+<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a>  0102<span class="in">:</span> XOR r0<span class="op">,</span> r3</span>
+<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a>  0105<span class="in">:</span> MOVQ r2<span class="op">,</span> 0100000000000000</span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a>  010f<span class="in">:</span> ADD r10<span class="op">,</span> r2</span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a>  0112<span class="in">:</span> MOVQ r2<span class="op">,</span> 0a00000000000000</span>
+<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a>  011c<span class="in">:</span> DIV r10<span class="op">,</span> r2</span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a>  011f<span class="in">:</span> MOV r10<span class="op">,</span> r2</span>
+<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>  0122<span class="in">:</span> MOV r9<span class="op">,</span> r0</span>
+<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>  0125<span class="in">:</span> MOV r0<span class="op">,</span> r7</span>
+<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>  0128<span class="in">:</span> MOV r1<span class="op">,</span> r15</span>
+<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a>  012b<span class="in">:</span> MOVQ r2<span class="op">,</span> ff00000000000000</span>
+<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a>  0135<span class="in">:</span> AND r13<span class="op">,</span> r2</span>
+<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a>  0138<span class="in">:</span> AND r0<span class="op">,</span> r2</span>
+<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a>  013b<span class="in">:</span> MUL r0<span class="op">,</span> r13</span>
+<span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a>  013e<span class="in">:</span> AND r14<span class="op">,</span> r2</span>
+<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a>  0141<span class="in">:</span> MUL r1<span class="op">,</span> r14</span>
+<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a>  0144<span class="in">:</span> ADD r0<span class="op">,</span> r1</span>
+<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a>  0147<span class="in">:</span> MOVQ r2<span class="op">,</span> 0001000000000000</span>
+<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a>  0151<span class="in">:</span> DIV r0<span class="op">,</span> r2</span>
+<span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a>  0154<span class="in">:</span> MOV r0<span class="op">,</span> r2</span>
+<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a>  0157<span class="in">:</span> MOVW r16<span class="op">,</span> 20000000</span>
+<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a>  015d<span class="in">:</span> PUSH r16</span>
+<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a>  015f<span class="in">:</span> POP r3</span>
+<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a>  0161<span class="in">:</span> ADD r3<span class="op">,</span> r10</span>
+<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a>  0164<span class="in">:</span> MOV r3<span class="op">,</span> r3</span>
+<span id="cb8-98"><a href="#cb8-98" aria-hidden="true" tabindex="-1"></a>  0167<span class="in">:</span> MOVQ r2<span class="op">,</span> ff00000000000000</span>
+<span id="cb8-99"><a href="#cb8-99" aria-hidden="true" tabindex="-1"></a>  0171<span class="in">:</span> AND r3<span class="op">,</span> r2</span>
+<span id="cb8-100"><a href="#cb8-100" aria-hidden="true" tabindex="-1"></a>  0174<span class="in">:</span> XOR r0<span class="op">,</span> r3</span>
+<span id="cb8-101"><a href="#cb8-101" aria-hidden="true" tabindex="-1"></a>  0177<span class="in">:</span> MOVQ r2<span class="op">,</span> 0100000000000000</span>
+<span id="cb8-102"><a href="#cb8-102" aria-hidden="true" tabindex="-1"></a>  0181<span class="in">:</span> ADD r10<span class="op">,</span> r2</span>
+<span id="cb8-103"><a href="#cb8-103" aria-hidden="true" tabindex="-1"></a>  0184<span class="in">:</span> MOVQ r2<span class="op">,</span> 0a00000000000000</span>
+<span id="cb8-104"><a href="#cb8-104" aria-hidden="true" tabindex="-1"></a>  018e<span class="in">:</span> DIV r10<span class="op">,</span> r2</span>
+<span id="cb8-105"><a href="#cb8-105" aria-hidden="true" tabindex="-1"></a>  0191<span class="in">:</span> MOV r10<span class="op">,</span> r2</span>
+<span id="cb8-106"><a href="#cb8-106" aria-hidden="true" tabindex="-1"></a>  0194<span class="in">:</span> MOV r7<span class="op">,</span> r9</span>
+<span id="cb8-107"><a href="#cb8-107" aria-hidden="true" tabindex="-1"></a>  0197<span class="in">:</span> MOV r15<span class="op">,</span> r0</span>
+<span id="cb8-108"><a href="#cb8-108" aria-hidden="true" tabindex="-1"></a>  019a<span class="in">:</span> PUSH r7</span>
+<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a>  019c<span class="in">:</span> MOVQ r1<span class="op">,</span> 0200000000000000</span>
+<span id="cb8-110"><a href="#cb8-110" aria-hidden="true" tabindex="-1"></a>  01a6<span class="in">:</span> PUSH r1</span>
+<span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a>  01a8<span class="in">:</span> PUSH r5</span>
+<span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a>  01aa<span class="in">:</span> SYSCALL 4 <span class="in">(</span>fwrite<span class="in">()</span> operation<span class="in">)</span></span>
+<span id="cb8-113"><a href="#cb8-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a>  01ac<span class="in">:</span> MOVB r7<span class="op">,</span> 00</span>
+<span id="cb8-115"><a href="#cb8-115" aria-hidden="true" tabindex="-1"></a>  01af<span class="in">:</span> MOVB r15<span class="op">,</span> 00</span>
+<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a>  01b2<span class="in">:</span> SUB r6<span class="op">,</span> r1</span>
+<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a>  01b5<span class="in">:</span> MOVQ r1<span class="op">,</span> 0000000000000000</span>
+<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a>  01bf<span class="in">:</span> JGE r1<span class="op">,</span> r6<span class="op">,</span> 0xfffffffffffffeac ; jump to LOOP</span>
+<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>  01ca<span class="in">:</span> PUSH r5</span>
+<span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a>  01cc<span class="in">:</span> SYSCALL 5 <span class="in">(</span>fclose<span class="in">()</span> operation<span class="in">)</span></span>
+<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a>EXIT<span class="in">:</span></span>
+<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>  01ce<span class="in">:</span> RET </span></code></pre></div>
+<p>warriii’s reversal w breakpoints</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode css"><code class="sourceCode css"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>INIT ptr = 0</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>START LOOP</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>k0<span class="op">,</span> k1<span class="op">,</span> k2<span class="op">,</span> k3 = sDda</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>sDda<span class="op">,</span> cnter=1<span class="in">)</span> --<span class="op">&gt;</span> k1 = Dda</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>sDda<span class="op">,</span> cnter=1<span class="in">)</span> --<span class="op">&gt;</span> k2 = da</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>sDda<span class="op">,</span> cnter=1<span class="in">)</span> --<span class="op">&gt;</span> k3 = a</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span><span class="op">&amp;</span>aX<span class="op">,</span> cnter=1<span class="in">)</span> --<span class="op">&gt;</span> a <span class="in">(</span>ADDRESS. doesn&#39;t alter anything<span class="in">)</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>?? --<span class="op">&gt;</span> cnter = ptxt_1 = X now</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>k0<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> k0 = s</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>pt0<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> pt0 = a</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>mul<span class="in">(</span>pt0<span class="op">,</span> k0<span class="in">)</span> --<span class="op">&gt;</span> pt0 = 0x2b93</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>k1<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> k1 = D</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>mul<span class="in">(</span>pt1<span class="op">,</span> k1<span class="in">)</span> --<span class="op">&gt;</span> pt1 = 0x1760</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>pt0<span class="op">,</span> pt1<span class="in">)</span> --<span class="op">&gt;</span> pt0 = 0x42f3</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>&lt;collect g0 = googoogaagaa<span class="op">&gt;</span> <span class="in">(</span>looks like we&#39;re cycling here<span class="in">)</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>g0<span class="op">,</span> ptr = 0<span class="in">)</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>g0<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> g0 = g</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>?? pt0 = 0xf3 <span class="in">(</span>they mod 256 prob<span class="in">)</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>xor<span class="in">(</span>pt0<span class="op">,</span> g0<span class="in">)</span> --<span class="op">&gt;</span> pt0 = 0x94</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>ptr<span class="op">,</span> 1<span class="in">)</span> --<span class="op">&gt;</span> ptr = 1</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>k2<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> k2 = d</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>?? pt0<span class="op">,</span> pt1 = aX<span class="op">,</span> X</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>pt0<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> pt0 = a</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>mul<span class="in">(</span>pt0<span class="op">,</span> k2<span class="in">)</span> --<span class="op">&gt;</span> pt0 = 0x25e4</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>k3<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> k3 = a</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>mul<span class="in">(</span>pt1<span class="op">,</span> k3<span class="in">)</span> --<span class="op">&gt;</span> pt1 = 0x2158</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>pt0<span class="op">,</span> pt1<span class="in">)</span> --<span class="op">&gt;</span> pt0 = 0x473c</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>&lt;collect g0 = googoogaagaa<span class="op">&gt;</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>g0<span class="op">,</span> ptr = 1<span class="in">)</span> --<span class="op">&gt;</span> g0 = oo..</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>and<span class="in">(</span>g0<span class="op">,</span> 0xff<span class="in">)</span> --<span class="op">&gt;</span> g0 = o</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>?? pt0 = 0x3c <span class="in">(</span>they mod 256 prob<span class="in">)</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>xor<span class="in">(</span>pt0<span class="op">,</span> g0<span class="in">)</span> --<span class="op">&gt;</span> pt0 = 0x53</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>add<span class="in">(</span>ptr<span class="op">,</span> 1<span class="in">)</span> --<span class="op">&gt;</span> ptr = 2</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>sub<span class="in">(</span>ptxtlen<span class="op">,</span> 2<span class="in">)</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>REPEAT LOOP</span></code></pre></div>
