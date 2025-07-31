@@ -1,54 +1,49 @@
-// Clickable-only menu (no keyboard selection)
-// — cleaned up & simplified —
+/* =========================================================
+   CRT Site — Click-Only Navigation  (no keyboard)
+   ========================================================= */
 
-var main   = document.querySelector('main');
-var canvas = document.getElementById('canvas');
-var ctx    = canvas.getContext('2d');
-var text   = document.querySelector('.text');
-var ww     = window.innerWidth;
-var menu   = document.querySelector('.menu');
-var ul     = menu.querySelector('ul');
-var frame;
+const rands = [ /* still here if you decide to reuse */ ];
 
-// Set canvas size (keeps your original proportions)
-canvas.width  = ww / 3;
-canvas.height = (ww * 0.5625) / 3;
+const main   = document.querySelector('main');
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const text   = document.querySelector('.text');
+const menu   = document.querySelector('.menu');
+let   ul     = menu.querySelector('ul');
+let   frame;
 
-// Generate CRT noise
+// size canvas at 1/3 width, 16:9 ratio
+canvas.width  = window.innerWidth / 3;
+canvas.height = (window.innerWidth * 0.5625) / 3;
+
+/* ---------- CRT SNOW ------------------------------------ */
 function snow(ctx) {
-  var w = ctx.canvas.width,
-      h = ctx.canvas.height,
-      d = ctx.createImageData(w, h),
-      b = new Uint32Array(d.data.buffer),
-      len = b.length;
-
-  for (var i = 0; i < len; i++) {
-    b[i] = ((255 * Math.random()) | 0) << 24;
-  }
+  const w = ctx.canvas.width,
+        h = ctx.canvas.height,
+        d = ctx.createImageData(w, h),
+        b = new Uint32Array(d.data.buffer),
+        len = b.length;
+  for (let i = 0; i < len; i++) b[i] = ((255 * Math.random()) | 0) << 24;
   ctx.putImageData(d, 0, 0);
 }
-
 function animate() {
   snow(ctx);
   frame = requestAnimationFrame(animate);
 }
 
-
+/* ---------- ABOUT & MENU SWAP --------------------------- */
 function showAboutInfo() {
-  if (!window._originalMenu) {
-    window._originalMenu = ul; // keep the live element so we can restore it
-  }
+  /* set background + pause noise */
+  main.classList.add('about-mode');
+  if (frame) { cancelAnimationFrame(frame); frame = null; }
 
-  // Switch the whole site into "about mode"
-  document.querySelector('main').classList.add('about-mode');
+  /* header text → ABOUT */
+  menu.querySelector('header').textContent = 'About';
 
-  // Stop the CRT noise drawing
-  if (window.frame) {
-    cancelAnimationFrame(window.frame);
-    window.frame = null;
-  }
+  /* keep original <ul> so we can restore */
+  if (!window._originalMenu) window._originalMenu = ul;
 
-  // Swap the menu list for your About copy (box styling stays the same)
+  /* replace list with intro content */
   const aboutText = document.createElement('div');
   aboutText.className = 'about-text';
   aboutText.innerHTML = `
@@ -57,66 +52,59 @@ function showAboutInfo() {
       Hello! I'm PingPwn, a CTF player from Greece. Lately I've been focusing on reverse engineering and binary exploitation.
       Feel free to reach out on discord @pingpwn &lt;3
     </p>
-    <p><a href="#" data-action="back" title="Back">Back</a></p>
+    <p><a href="#" data-action="back">Back</a></p>
   `;
   ul.parentElement.replaceChild(aboutText, ul);
   window._aboutText = aboutText;
 }
 
 function restoreMenu() {
-  // Restore the normal background
-  document.querySelector('main').classList.remove('about-mode');
+  /* remove background + resume noise */
+  main.classList.remove('about-mode');
+  if (!frame) animate();
 
-  // Bring the CRT noise back
-  if (!window.frame) {
-    animate();
-  }
-
-  // Restore menu list
+  /* swap back to original list */
   if (window._aboutText && window._originalMenu) {
     window._aboutText.parentElement.replaceChild(window._originalMenu, window._aboutText);
     ul = window._originalMenu;
     window._aboutText = null;
     window._originalMenu = null;
   }
+
+  /* header text → MAIN MENU */
+  menu.querySelector('header').textContent = 'Main Menu';
 }
 
-
-
-// Duplicate the “AV-1” spans to keep your visual effect
-for (var i = 0; i < 4; i++) {
-  var span = text.firstElementChild.cloneNode(true);
-  text.appendChild(span);
+/* ---------- DUPLICATE AV-1 SPANS FOR RGB OFFSET --------- */
+for (let i = 0; i < 4; i++) {
+  text.appendChild(text.firstElementChild.cloneNode(true));
 }
 
-// Boot animation
-window.addEventListener('DOMContentLoaded', function () {
-  setTimeout(function () {
+/* ---------- INITIAL BOOT ANIMATION ---------------------- */
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
     main.classList.add('on');
     main.classList.remove('off');
     animate();
   }, 1000);
 });
 
-// CLICK-ONLY NAVIGATION (event delegation)
-menu.addEventListener('click', function (e) {
+/* ---------- CLICK-ONLY EVENT DELEGATION ----------------- */
+menu.addEventListener('click', (e) => {
   const a = e.target.closest('a');
   if (!a) return;
 
   const action = a.dataset.action;
 
-  // In-page actions
-  if (action === 'about') {
+  if (action === 'about') {            /* open About */
     e.preventDefault();
     showAboutInfo();
     return;
   }
-  if (action === 'back') {
+  if (action === 'back') {             /* back to menu */
     e.preventDefault();
     restoreMenu();
     return;
   }
-
-  // Otherwise let anchors navigate normally.
-  // (External links already have target/_blank in HTML.)
+  /* normal navigation for all other anchors */
 }, false);

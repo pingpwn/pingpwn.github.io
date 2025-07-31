@@ -1,7 +1,18 @@
 @charset "UTF-8";
-/* =========================================
-   CRT Monitor UI — Responsive SCSS
-   ========================================= */
+/* =========================================================
+   CRT MONITOR SITE  —  RESPONSIVE & ABOUT-MODE THEME
+   ========================================================= */
+/* ---------- GLOBAL COLOR THEMING -------------------------
+   Change the CSS variables here for “Main Menu” colors.
+   The About screen overrides them under .about-mode.
+----------------------------------------------------------- */
+:root {
+  --menu-bg: #0069ff;
+  /* blue box background */
+  --menu-accent: #1af2ff;
+  /* active-row highlight */ }
+
+/* ---------- BASE LAYOUT --------------------------------- */
 body {
   background: #1b2838;
   margin: 0;
@@ -15,7 +26,12 @@ body {
 @font-face {
   src: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/sys.ttf) format("truetype");
   font-family: 'Sys'; }
-/* background when TV is off */
+/* ---------- CRT FRAME ----------------------------------- */
+.screen {
+  position: relative;
+  height: 100vh;
+  /* ensures bg covers viewport */ }
+
 .screen::before {
   background: linear-gradient(to bottom, #85908c 0%, #323431 100%);
   content: "";
@@ -27,7 +43,7 @@ body {
   height: 100%;
   z-index: -1; }
 
-/* CRT scanlines */
+/* ---------- CRT OVERLAY (SCANLINES) --------------------- */
 .scanlines .overlay {
   height: 100%;
   left: 0;
@@ -40,16 +56,13 @@ body {
   justify-content: center; }
   .scanlines .overlay::after {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background-image: url("https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/crt.png");
     background-repeat: no-repeat;
     background-size: 100% 100%;
     content: "";
     pointer-events: none;
-    /* allow clicks/taps to pass through */ }
+    /* LET CLICKS THROUGH */ }
   .scanlines .overlay::before {
     position: absolute;
     top: 0;
@@ -62,33 +75,28 @@ body {
     background-size: 100% 2px, 3px 100%;
     pointer-events: none; }
 
+/* ---------- STATIC NOISE CANVAS ------------------------- */
 .picture {
   height: 100vh;
-  overflow: hidden;
   width: 100vw;
-  z-index: -1;
   transform: scale(0, 0);
   background: linear-gradient(to bottom, #85908c 0%, #323431 100%); }
 
-/* ===========================
-   MENU (responsive & clickable)
-   =========================== */
+/* ---------- MENU BOX (MAIN & ABOUT SHARE) --------------- */
 .menu {
   opacity: 0;
-  background-color: #0069ff;
-  box-sizing: border-box;
   font-family: "Sys";
-  /* was: font-size: 40px; width: 30%; */
   font-size: clamp(16px, 4.5vw, 40px);
   width: clamp(320px, 80vw, 560px);
   line-height: 1.15;
   text-transform: uppercase;
-  text-shadow: 1px 1px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000;
-  filter: blur(1px);
   color: #fff;
+  background-color: var(--menu-bg);
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  filter: blur(1px);
   animation: jerkup 100ms infinite;
   overflow: hidden;
-  /* clip glitch/skew overflow on mobile */ }
+  /* clip glitch/skew overflow */ }
   .menu header {
     color: #e7e05c;
     margin-bottom: 10px;
@@ -99,51 +107,72 @@ body {
     padding: 0;
     animation: 5s ease 2000ms infinite glitch; }
     .menu ul li {
-      box-sizing: border-box;
       list-style: none;
       padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px); }
       .menu ul li a {
-        color: #fff;
-        text-decoration: none;
         display: block;
-        /* full-row tap target */ }
+        /* full-row tap target */
+        text-decoration: none;
+        color: #fff; }
       .menu ul li:hover {
-        background-color: rgba(26, 242, 255, 0.25); }
+        background-color: rgba(255, 255, 255, 0.12); }
       .menu ul li.active {
-        background-color: #1af2ff; }
-  .menu footer {
-    background-color: #2afd72;
-    margin-top: 10px;
-    padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px);
-    animation: 5s ease 2000ms infinite glitch; }
-    .menu footer::after {
-      clear: both;
-      content: " ";
-      display: table; }
-    .menu footer .key {
-      float: left;
-      width: 50%; }
-      .menu footer .key span {
-        background-color: #0069ff;
-        border: 6px solid #e7e05c;
-        border-radius: 6px;
-        display: inline-block;
-        height: 34px;
-        line-height: 36px;
-        padding-left: 6px; }
-    .menu footer .key:last-child {
-      text-align: right; }
+        background-color: var(--menu-accent); }
 
-/* Tiny screens: let the menu take almost full width */
+/* ABOUT text replaces the <ul> and needs padding */
+.menu .about-text {
+  padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px); }
+
+.menu .about-text p {
+  margin: 0 0 clamp(8px, 2.5vw, 14px); }
+
+.menu .about-text a {
+  display: inline-block;
+  text-decoration: none;
+  color: #e7e05c;
+  border: 2px solid #e7e05c;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35); }
+
+.menu .about-text a:hover {
+  background: rgba(231, 224, 92, 0.15); }
+
+/* ---------- RESPONSIVE WIDTH FOR VERY SMALL SCREENS ----- */
 @media (max-width: 420px) {
   .menu {
     width: 92vw; } }
+/* ---------- TRANSITION (TV ON/OFF) ---------------------- */
 .on .picture {
   animation: 3000ms linear forwards on; }
 
 .off .picture {
   animation: 750ms cubic-bezier(0.23, 1, 0.32, 1) forwards off; }
 
+.text, .menu {
+  opacity: 0; }
+
+.on .text, .on .menu {
+  opacity: 1;
+  transition: opacity 10ms ease 2000ms; }
+
+/* ---------- ABOUT-MODE SCREEN BACKGROUND ---------------- */
+.about-mode .screen {
+  background: #000 url("../assets/bg_about.png") center/cover no-repeat; }
+
+.about-mode .picture {
+  display: none; }
+
+/* ---------- ABOUT-MODE COLOR THEME ---------------------- */
+.about-mode {
+  --menu-bg: #0e7c66;
+  /* teal box in About */
+  --menu-accent: #22e0b6; }
+
+/* ---------- TEXT “AV-1” & GLITCH FX (unchanged) --------- */
+/* (the long glitch keyframes & rgb offset rules remain same) */
+/*   ----  [code omitted here for brevity; keep yours intact] ---- */
+/* KEEP your existing @keyframes on, off, blur, jerk, jerkup, glitch1, glitch2, glitch etc. */
 /* ===========================
    AV-1 Text & Glitches
    =========================== */
