@@ -291,3 +291,11 @@ body {
   43% {
     opacity: 1;
     transform: scale(1, 1) skew(0, 0); } }
+.about-mode .screen {
+  background: #000 url("../assets/bg_about.png") center/cover no-repeat;
+  height: 100vh; }
+
+.about-mode .picture {
+  /* this is your <canvas> */
+  display: none;
+  /* stops it from covering the background */ }

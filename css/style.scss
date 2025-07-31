@@ -191,6 +191,9 @@ $font-size: 20px;
   }
 }
 
+
+
+
 /* Tiny screens: let the menu take almost full width */
 @media (max-width: 420px) {
   .menu {
@@ -299,4 +302,14 @@ $delay: 2000ms;
   41% { opacity: 0.8; transform: scale(1, 1.2) skew(80deg, 0); }
   42% { opacity: 0.8; transform: scale(1, 1.2) skew(-50deg, 0); }
   43% { opacity: 1;   transform: scale(1, 1) skew(0, 0); }
+}
+
+
+.about-mode .screen {
+  background: #000 url('../assets/bg_about.png') center / cover no-repeat;
+  height: 100vh;
+}
+
+.about-mode .picture { /* this is your <canvas> */
+  display: none;       /* stops it from covering the background */
 }

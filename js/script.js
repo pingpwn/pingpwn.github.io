@@ -33,32 +33,46 @@ function animate() {
   frame = requestAnimationFrame(animate);
 }
 
-// Build the “About” view and swap it in
+
 function showAboutInfo() {
   if (!window._originalMenu) {
     window._originalMenu = ul; // keep the live element so we can restore it
   }
 
+  // Switch the whole site into "about mode"
+  document.querySelector('main').classList.add('about-mode');
+
+  // Stop the CRT noise drawing
+  if (window.frame) {
+    cancelAnimationFrame(window.frame);
+    window.frame = null;
+  }
+
+  // Swap the menu list for your About copy (box styling stays the same)
   const aboutText = document.createElement('div');
   aboutText.className = 'about-text';
   aboutText.innerHTML = `
     <img src="assets/lecat.png" width="200" alt="cat" />
     <p>
-      Hello!<br/>
-      I'm PingPwn, a CTF player from Greece. Lately I've been focusing on reverse engineering and binary exploitation.
+      Hello! I'm PingPwn, a CTF player from Greece. Lately I've been focusing on reverse engineering and binary exploitation.
       Feel free to reach out on discord @pingpwn &lt;3
     </p>
-    <p>
-      <a href="#" data-action="back" title="Back">Back</a>
-    </p>
+    <p><a href="#" data-action="back" title="Back">Back</a></p>
   `;
-
   ul.parentElement.replaceChild(aboutText, ul);
   window._aboutText = aboutText;
 }
 
-// Restore the original menu list
 function restoreMenu() {
+  // Restore the normal background
+  document.querySelector('main').classList.remove('about-mode');
+
+  // Bring the CRT noise back
+  if (!window.frame) {
+    animate();
+  }
+
+  // Restore menu list
   if (window._aboutText && window._originalMenu) {
     window._aboutText.parentElement.replaceChild(window._originalMenu, window._aboutText);
     ul = window._originalMenu;
@@ -66,6 +80,8 @@ function restoreMenu() {
     window._originalMenu = null;
   }
 }
+
+
 
 // Duplicate the “AV-1” spans to keep your visual effect
 for (var i = 0; i < 4; i++) {
@@ -104,5 +120,3 @@ menu.addEventListener('click', function (e) {
   // Otherwise let anchors navigate normally.
   // (External links already have target/_blank in HTML.)
 }, false);
-
-// Note: All keyboard handling (1 to select, 2 to random, arrow navigation) has been removed.
