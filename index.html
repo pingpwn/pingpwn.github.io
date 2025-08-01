@@ -9,7 +9,13 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <main class="scanlines">
+<video id="vhs" width="0" height="0">
+  <source src="assets/vhs.mp4" type="video/mp4">
+  <source src="assets/vhs.ogg" type="video/ogg">
+  Your browser does not support HTML5 video.
+</video>
+
+    <main class="scanlines">
     <div class="screen">
       <canvas id="canvas" class="picture"></canvas>
 
@@ -22,7 +28,7 @@
           <header>Main Menu</header>
           <ul>
             <li><a href="#" data-action="about" title="About">About</a></li>
-            <li><a href="blog.html" title="Blog / Writeups">Blog / Writeups</a></li>
+            <li><a href="#" data-action="blog" title="Blog / Writeups">Blog / Writeups</a></li>
             <li><a href="https://app.hackthebox.com/users/771008" target="_blank" rel="noopener" title="HackTheBox">HackTheBox</a></li>
             <li><a href="https://github.com/pingpwn" target="_blank" rel="noopener" title="Github">Github</a></li>
             <li><a href="https://ctftime.org/user/194776" target="_blank" rel="noopener" title="CTFTime">CTFTime</a></li>

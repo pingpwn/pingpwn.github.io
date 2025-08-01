@@ -1,238 +1,36 @@
 @charset "UTF-8";
 /* =========================================================
-   CRT MONITOR SITE  —  RESPONSIVE & ABOUT-MODE THEME
+   CRT MONITOR SITE — Main / About / VHS
    ========================================================= */
-/* ---------- GLOBAL COLOR THEMING -------------------------
-   Change the CSS variables here for “Main Menu” colors.
-   The About screen overrides them under .about-mode.
------------------------------------------------------------ */
+/* ----- COLOR THEMES ------------------------------------ */
 :root {
   --menu-bg: #0069ff;
-  /* blue box background */
-  --menu-accent: #1af2ff;
-  /* active-row highlight */ }
+  /* blue for Main Menu */
+  --menu-accent: #1af2ff; }
 
-/* ---------- BASE LAYOUT --------------------------------- */
-body {
-  background: #1b2838;
-  margin: 0;
-  overflow: hidden;
-  height: 100vh;
-  width: 100vw; }
-
-@font-face {
-  src: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/terminal_copy.ttf);
-  font-family: 'Terminal'; }
-@font-face {
-  src: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/sys.ttf) format("truetype");
-  font-family: 'Sys'; }
-/* ---------- CRT FRAME ----------------------------------- */
-.screen {
-  position: relative;
-  height: 100vh;
-  /* ensures bg covers viewport */ }
-
-.screen::before {
-  background: linear-gradient(to bottom, #85908c 0%, #323431 100%);
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate3d(-50%, -50%, 0);
-  width: 100%;
-  height: 100%;
-  z-index: -1; }
-
-/* ---------- CRT OVERLAY (SCANLINES) --------------------- */
-.scanlines .overlay {
-  height: 100%;
-  left: 0;
-  position: absolute;
-  top: 0;
-  width: 100%;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center; }
-  .scanlines .overlay::after {
-    position: absolute;
-    inset: 0;
-    background-image: url("https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/crt.png");
-    background-repeat: no-repeat;
-    background-size: 100% 100%;
-    content: "";
-    pointer-events: none;
-    /* LET CLICKS THROUGH */ }
-  .scanlines .overlay::before {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    content: " ";
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-    z-index: 2;
-    background-size: 100% 2px, 3px 100%;
-    pointer-events: none; }
-
-/* ---------- STATIC NOISE CANVAS ------------------------- */
-.picture {
-  height: 100vh;
-  width: 100vw;
-  transform: scale(0, 0);
-  background: linear-gradient(to bottom, #85908c 0%, #323431 100%); }
-
-/* ---------- MENU BOX (MAIN & ABOUT SHARE) --------------- */
-.menu {
-  opacity: 0;
-  font-family: "Sys";
-  font-size: clamp(16px, 4.5vw, 40px);
-  width: clamp(320px, 80vw, 560px);
-  line-height: 1.15;
-  text-transform: uppercase;
-  color: #fff;
-  background-color: var(--menu-bg);
-  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
-  filter: blur(1px);
-  animation: jerkup 100ms infinite;
-  overflow: hidden;
-  /* clip glitch/skew overflow */ }
-  .menu header {
-    color: #e7e05c;
-    margin-bottom: 10px;
-    padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px);
-    animation: 5s ease 2000ms infinite glitch; }
-  .menu ul {
-    margin: 0;
-    padding: 0;
-    animation: 5s ease 2000ms infinite glitch; }
-    .menu ul li {
-      list-style: none;
-      padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px); }
-      .menu ul li a {
-        display: block;
-        /* full-row tap target */
-        text-decoration: none;
-        color: #fff; }
-      .menu ul li:hover {
-        background-color: rgba(255, 255, 255, 0.12); }
-      .menu ul li.active {
-        background-color: var(--menu-accent); }
-
-/* ABOUT text replaces the <ul> and needs padding */
-.menu .about-text {
-  padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px); }
-
-.menu .about-text p {
-  margin: 0 0 clamp(8px, 2.5vw, 14px); }
-
-.menu .about-text a {
-  display: inline-block;
-  text-decoration: none;
-  color: #e7e05c;
-  border: 2px solid #e7e05c;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.35); }
-
-.menu .about-text a:hover {
-  background: rgba(231, 224, 92, 0.15); }
-
-/* ---------- RESPONSIVE WIDTH FOR VERY SMALL SCREENS ----- */
-@media (max-width: 420px) {
-  .menu {
-    width: 92vw; } }
-/* ---------- TRANSITION (TV ON/OFF) ---------------------- */
-.on .picture {
-  animation: 3000ms linear forwards on; }
-
-.off .picture {
-  animation: 750ms cubic-bezier(0.23, 1, 0.32, 1) forwards off; }
-
-.text, .menu {
-  opacity: 0; }
-
-.on .text, .on .menu {
-  opacity: 1;
-  transition: opacity 10ms ease 2000ms; }
-
-/* ---------- ABOUT-MODE SCREEN BACKGROUND ---------------- */
-.about-mode .screen {
-  background: #000 url("../assets/bg_about.png") center/cover no-repeat; }
-
-.about-mode .picture {
-  display: none; }
-
-/* ---------- ABOUT-MODE COLOR THEME ---------------------- */
 .about-mode {
   --menu-bg: #0e7c66;
-  /* teal box in About */
+  /* teal for About */
   --menu-accent: #22e0b6; }
 
-/* ---------- TEXT “AV-1” & GLITCH FX (unchanged) --------- */
-/* (the long glitch keyframes & rgb offset rules remain same) */
-/*   ----  [code omitted here for brevity; keep yours intact] ---- */
-/* KEEP your existing @keyframes on, off, blur, jerk, jerkup, glitch1, glitch2, glitch etc. */
-/* ===========================
-   AV-1 Text & Glitches
-   =========================== */
+/* ---------- “AV-1” LABEL & RGB GLITCH ------------------ */
 .text {
-  color: lime;
-  content: "AV-1";
-  opacity: 0;
-  filter: blur(0.5px);
-  font-family: Sys;
-  font-size: 6vmin;
-  left: 5%;
   position: absolute;
-  text-shadow: 0 0 3px lime;
   top: 10%;
-  width: 200px; }
+  left: 5%;
+  width: 200px;
+  font-family: 'Sys';
+  font-size: 6vmin;
+  color: lime;
+  text-shadow: 0 0 3px lime;
+  filter: blur(0.5px); }
 
-.on .text, .on .menu {
-  opacity: 1;
-  transition: opacity 10ms ease 2000ms; }
-
-@keyframes on {
-  0% {
-    transform: scale(1, 0.8) translate3d(0, 0, 0);
-    filter: brightness(4);
-    opacity: 1; }
-  3.5% {
-    transform: scale(1, 0.8) translate3d(0, 100%, 0); }
-  3.6% {
-    transform: scale(1, 0.8) translate3d(0, -100%, 0);
-    opacity: 1; }
-  9% {
-    transform: scale(1.3, 0.6) translate3d(0, 100%, 0);
-    filter: brightness(4);
-    opacity: 0; }
-  11% {
-    transform: scale(1, 1) translate3d(0, 0, 0);
-    filter: contrast(0) brightness(0);
-    opacity: 0; }
-  100% {
-    transform: scale(1, 1) translate3d(0, 0, 0);
-    filter: contrast(1) brightness(1.2) saturate(1.3);
-    opacity: 1; } }
-@keyframes off {
-  0% {
-    transform: scale(1, 1);
-    filter: brightness(1); }
-  40% {
-    transform: scale(1, 0.005);
-    filter: brightness(100); }
-  70% {
-    transform: scale(1, 0.005); }
-  90% {
-    transform: scale(0.005, 0.005); }
-  100% {
-    transform: scale(0, 0); } }
 .text span {
+  position: absolute;
   filter: blur(1px);
-  position: absolute; }
+  animation: blur 30ms infinite, jerk 50ms infinite; }
 
-/* RGB offsets */
+/* RGB offsets & glow layers */
 .text span:nth-child(1) {
   color: red;
   margin-left: -2px;
@@ -256,19 +54,241 @@ body {
   color: rgba(255, 255, 255, 0.1);
   filter: blur(15px); }
 
-.text span {
-  animation: blur 30ms infinite, jerk 50ms infinite; }
+/* Extra horizontal jitter on two layers */
+.text span:nth-child(3) {
+  animation: glitch1 1s infinite; }
 
+.text span:nth-child(2) {
+  animation: glitch2 1s infinite; }
+
+/* ----- BASE PAGE --------------------------------------- */
+body {
+  background: #1b2838;
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw; }
+
+@font-face {
+  src: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/terminal_copy.ttf);
+  font-family: 'Terminal'; }
+@font-face {
+  src: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/sys.ttf) format("truetype");
+  font-family: 'Sys'; }
+/* MIXINS */
+/* ----- CRT FRAME --------------------------------------- */
+.screen {
+  position: relative;
+  height: 100vh; }
+
+.screen::before {
+  background: linear-gradient(#85908c 0%, #323431 100%);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  width: 100%;
+  height: 100%;
+  z-index: -1; }
+
+/* ----- SCANLINES OVERLAY ------------------------------- */
+.scanlines .overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+  z-index: 1; }
+  .scanlines .overlay::after {
+    position: absolute;
+    inset: 0;
+    content: " ";
+    background: url("https://s3-us-west-2.amazonaws.com/s.cdpn.io/86186/crt.png") 0/100% 100% no-repeat;
+    pointer-events: none; }
+  .scanlines .overlay::before {
+    position: absolute;
+    inset: 0;
+    content: " ";
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 2px,3px 100%;
+    pointer-events: none; }
+
+/* ----- NOISE CANVAS ------------------------------------ */
+.picture {
+  width: 100vw;
+  height: 100vh;
+  transform: scale(0, 0);
+  background: linear-gradient(#85908c 0%, #323431 100%); }
+
+/* ----- MENU BOX ---------------------------------------- */
+.menu {
+  opacity: 0;
+  background: var(--menu-bg);
+  font-family: 'Sys';
+  font-size: clamp(16px, 4.5vw, 40px);
+  width: clamp(320px, 80vw, 560px);
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000;
+  filter: blur(1px);
+  animation: jerkup 100ms infinite;
+  overflow: hidden; }
+  .menu header {
+    color: #e7e05c;
+    padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px);
+    margin-bottom: 10px;
+    animation: 5s ease 2000ms infinite glitch; }
+  .menu ul {
+    margin: 0;
+    padding: 0;
+    animation: 5s ease 2000ms infinite glitch; }
+    .menu ul li {
+      list-style: none;
+      padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px); }
+      .menu ul li a {
+        display: block;
+        color: #fff;
+        text-decoration: none; }
+      .menu ul li:hover {
+        background: rgba(255, 255, 255, 0.12); }
+      .menu ul li.active {
+        background: var(--menu-accent); }
+
+/* About text block inside menu */
+.menu .about-text {
+  padding: clamp(6px, 2.5vw, 12px) clamp(10px, 4vw, 16px); }
+  .menu .about-text p {
+    margin: 0 0 clamp(8px, 2.5vw, 14px); }
+  .menu .about-text a {
+    display: inline-block;
+    color: #e7e05c;
+    border: 2px solid #e7e05c;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.35); }
+    .menu .about-text a:hover {
+      background: rgba(231, 224, 92, 0.15); }
+
+/* ----- RESPONSIVE SMALL SCREENS ------------------------ */
+@media (max-width: 420px) {
+  .menu {
+    width: 92vw; } }
+/* ----- BOOT ANIMATION STATES --------------------------- */
+.on .picture {
+  animation: 3000ms linear forwards on; }
+
+.off .picture {
+  animation: 750ms cubic-bezier(0.23, 1, 0.32, 1) forwards off; }
+
+.text, .menu {
+  opacity: 0; }
+
+.on .text, .on .menu {
+  opacity: 1;
+  transition: opacity 10ms ease 2000ms; }
+
+/* ----- ABOUT MODE BACKGROUND --------------------------- */
+.about-mode .screen {
+  background: #000 url("../assets/bg_about.png") center/cover no-repeat; }
+
+.about-mode .picture {
+  display: none; }
+
+/* ----- VHS MODE ---------------------------------------- */
+.vhs-mode .picture, .vhs-mode .menu {
+  display: none; }
+
+/* hide noise & box */
+.vhs-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  pointer-events: none;
+  z-index: 0; }
+
+.vhs-mode .text {
+  display: none; }
+
+/* 1️⃣  KEEP THE VIDEO HIDDEN UNTIL WE PLAY IT  */
+#vhs:not(.vhs-video) {
+  /* <─ note the :not() */
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  display: block;
+  /* avoid inline baseline artifacts */
+  background: transparent; }
+
+/* 2️⃣  FULL-SCREEN INSIDE THE CRT WHEN PLAYING */
+#vhs.vhs-video {
+  /* id + class overrides everything above */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  opacity: 1;
+  /* ← visible! */
+  pointer-events: none;
+  z-index: 0;
+  /* below scanlines overlay */ }
+
+/* ----- TINY KEYFRAMES (same as original) --------------- */
+/* (keep your existing @keyframes on, off, blur, jerk, jerkup, glitch1, glitch2, glitch) */
+@keyframes on {
+  0% {
+    transform: scale(1, 0.8);
+    filter: brightness(4);
+    opacity: 1; }
+  3.5% {
+    transform: scale(1, 0.8) translateY(100%); }
+  3.6% {
+    transform: scale(1, 0.8) translateY(-100%);
+    opacity: 1; }
+  9% {
+    transform: scale(1.3, 0.6) translateY(100%);
+    filter: brightness(4);
+    opacity: 0; }
+  11% {
+    transform: scale(1) translateY(0);
+    filter: contrast(0) brightness(0);
+    opacity: 0; }
+  100% {
+    transform: scale(1);
+    filter: contrast(1) brightness(1.2) saturate(1.3);
+    opacity: 1; } }
+@keyframes off {
+  0% {
+    transform: scale(1);
+    filter: brightness(1); }
+  40% {
+    transform: scale(1, 0.005);
+    filter: brightness(100); }
+  70% {
+    transform: scale(1, 0.005); }
+  90% {
+    transform: scale(0.005, 0.005); }
+  100% {
+    transform: scale(0); } }
 @keyframes blur {
   0% {
     filter: blur(1px);
-    opacity: 0.8; }
+    opacity: .8; }
   50% {
     filter: blur(1px);
     opacity: 1; }
   100% {
     filter: blur(1px);
-    opacity: 0.8; } }
+    opacity: .8; } }
 @keyframes jerk {
   50% {
     transform: translateX(1px); }
@@ -279,10 +299,6 @@ body {
     transform: translateY(1px); }
   100% {
     transform: translateY(0); } }
-/* Keep a single distinct effect per span */
-.text span:nth-child(3) {
-  animation: glitch1 1s infinite; }
-
 @keyframes glitch1 {
   0%,30% {
     transform: translateX(0); }
@@ -292,9 +308,6 @@ body {
     transform: translateX(0); }
   100% {
     transform: translateX(10px); } }
-.text span:nth-child(2) {
-  animation: glitch2 1s infinite; }
-
 @keyframes glitch2 {
   0%,30% {
     transform: translateX(0); }
@@ -304,27 +317,16 @@ body {
     transform: translateX(0); }
   100% {
     transform: translateX(-10px); } }
-.overlay .text {
-  animation: 5s ease 2000ms infinite glitch; }
-
 @keyframes glitch {
   40% {
     opacity: 1;
-    transform: scale(1, 1) skew(0, 0); }
+    transform: scale(1) skew(0); }
   41% {
-    opacity: 0.8;
-    transform: scale(1, 1.2) skew(80deg, 0); }
+    opacity: .8;
+    transform: scale(1, 1.2) skew(80deg); }
   42% {
-    opacity: 0.8;
-    transform: scale(1, 1.2) skew(-50deg, 0); }
+    opacity: .8;
+    transform: scale(1, 1.2) skew(-50deg); }
   43% {
     opacity: 1;
-    transform: scale(1, 1) skew(0, 0); } }
-.about-mode .screen {
-  background: #000 url("../assets/bg_about.png") center/cover no-repeat;
-  height: 100vh; }
-
-.about-mode .picture {
-  /* this is your <canvas> */
-  display: none;
-  /* stops it from covering the background */ }
+    transform: scale(1) skew(0); } }
