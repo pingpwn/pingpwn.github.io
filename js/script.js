@@ -75,26 +75,6 @@ function restoreMainMenu() {
   }
 }
 
-/* ---------- BLOG / VHS --------------------------------- */
-function playVHS() {
-  /* 1. Pause CRT noise & hide elements we don’t want */
-  if (frame) { cancelAnimationFrame(frame); frame = null; }
-  canvas.style.display = 'none';     // hide noise canvas
-  menu.style.display   = 'none';     // hide blue box
-  main.classList.add('vhs-mode');
-
-  /* 2. Move hidden <video id="vhs"> into the CRT screen */
-  const vid = document.getElementById('vhs');
-  screen.appendChild(vid);          // makes scanlines overlay sit on top
-  vid.classList.add('vhs-video');   // full-screen inside CRT
-
-  /* 3. Autoplay with sound (allowed because this runs in the click handler) */
-  vid.muted = false;                // want sound!
-  vid.play().catch(() => {          // fallback: ask user to click
-    vid.muted = true;
-    vid.play();
-  });
-}
 
 /* ========================================================
    BOOT ANIMATION & RGB DUPLICATE SPANS
@@ -123,7 +103,7 @@ menu.addEventListener('click', (e) => {
   switch (act) {
     case 'about': showAbout(); break;
     case 'back' : restoreMainMenu(); break;
-    case 'blog' : playVHS(); window.location.replace("/blog/"); break;
+    case 'blog' : window.location.replace("/blog/"); break;
     default:     window.open(a.href, '_blank', 'noopener'); /* external links */
   }
 }, false);
