@@ -123,7 +123,7 @@ menu.addEventListener('click', (e) => {
   switch (act) {
     case 'about': showAbout(); break;
     case 'back' : restoreMainMenu(); break;
-    case 'blog' : playVHS(); break;
+    case 'blog' : playVHS(); window.location.replace("/blog/"); break;
     default:     window.open(a.href, '_blank', 'noopener'); /* external links */
   }
 }, false);
