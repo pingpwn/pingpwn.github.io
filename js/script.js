@@ -104,6 +104,8 @@ menu.addEventListener('click', (e) => {
     case 'about': showAbout(); break;
     case 'back' : restoreMainMenu(); break;
     case 'blog' : window.location.replace("/blog/"); break;
+    case 'cv'        : window.location.replace("/cv.html"); break;
+    case 'eportfolio': window.location.replace("/eportfolio.html"); break;
     default:     window.open(a.href, '_blank', 'noopener'); /* external links */
   }
 }, false);

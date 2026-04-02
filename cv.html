@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pingpwn — CV / ePortfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #090c10;
+      --navy:    #0d1f3c;
+      --green:   #00ff9d;
+      --cyan:    #1af2ff;
+      --blue:    #0069ff;
+      --yellow:  #e7e05c;
+      --orange:  #e8683a;
+      --dim:     #1a2d3d;
+      --dim2:    #243344;
+      --text:    #b8ccd8;
+      --muted:   #3a5060;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Scanlines */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.15) 50%),
+        linear-gradient(90deg, rgba(255,0,0,0.025), rgba(0,255,0,0.015), rgba(0,0,255,0.025));
+      background-size: 100% 3px, 3px 100%;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* ═══════════════════════════════════════════
+       PDF-INSPIRED: TRI-COLOR TOP STRIPE
+       (matches the 3-bar header on every PDF slide)
+    ═══════════════════════════════════════════ */
+    .pdf-stripe {
+      display: flex;
+      width: 100%;
+      height: 7px;
+      position: sticky;
+      top: 0;
+      z-index: 500;
+    }
+    .pdf-stripe span:nth-child(1) { flex: 2; background: var(--navy); border-bottom: 2px solid #1a3a6a; }
+    .pdf-stripe span:nth-child(2) { flex: 2; background: var(--cyan); opacity: 0.8; }
+    .pdf-stripe span:nth-child(3) { flex: 1; background: #4a6070; }
+
+    /* ── LAYOUT ── */
+    .cv-wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 20px 80px;
+    }
+
+    /* ── NAV ── */
+    .cv-nav {
+      margin-bottom: 24px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .cv-nav a {
+      color: var(--cyan);
+      text-decoration: none;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 1px;
+    }
+    .cv-nav a::before { content: '← '; }
+    .cv-nav a:hover { color: var(--yellow); }
+    .cv-nav .univ-tag {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 1px;
+    }
+    .cv-nav .univ-tag span { color: var(--cyan); }
+
+    /* ── HEADER ── */
+    .cv-header {
+      border: 1px solid var(--dim2);
+      border-top: 3px solid var(--blue);
+      padding: 26px 28px 22px;
+      margin-bottom: 32px;
+      position: relative;
+      background: linear-gradient(135deg, rgba(13,31,60,0.6) 0%, rgba(9,12,16,0.8) 100%);
+    }
+    .cv-header::after {
+      content: '▮';
+      position: absolute;
+      bottom: 14px;
+      right: 18px;
+      color: rgba(0,255,157,0.3);
+      font-size: 22px;
+      animation: blink 1.2s step-end infinite;
+    }
+
+    .name {
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(28px, 5.5vw, 50px);
+      color: var(--green);
+      text-shadow: 0 0 14px rgba(0,255,157,0.4);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+    .handle {
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(14px, 2.5vw, 20px);
+      color: var(--cyan);
+      letter-spacing: 2px;
+      margin-top: 5px;
+    }
+    .handle::before { content: '> '; color: var(--yellow); }
+    .tagline {
+      margin-top: 12px;
+      color: var(--text);
+      font-size: 14px;
+      opacity: 0.8;
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--dim);
+    }
+    .meta-item { font-size: 12px; color: var(--muted); letter-spacing: 0.5px; }
+    .meta-item span { color: var(--cyan); }
+
+    /* ═══════════════════════════════════════════
+       PDF-INSPIRED: SECTION TITLE BANNER
+       (mirrors the dark-navy header bar on each slide)
+    ═══════════════════════════════════════════ */
+    .section { margin-bottom: 36px; }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(90deg, var(--navy) 0%, rgba(13,31,60,0.5) 100%);
+      border-left: 4px solid var(--cyan);
+      padding: 10px 16px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .section-title::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, rgba(26,242,255,0.04));
+      pointer-events: none;
+    }
+    .section-title .icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      background: rgba(26,242,255,0.12);
+      border: 1px solid rgba(26,242,255,0.3);
+      border-radius: 4px;
+      color: var(--cyan);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .section-title h2 {
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(12px, 2vw, 15px);
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-weight: normal;
+    }
+    .section-title .st-sub {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-top: 1px;
+    }
+
+    /* ── ABOUT ── */
+    .about-text {
+      color: var(--text);
+      line-height: 1.85;
+      padding: 14px 18px;
+      border-left: 3px solid var(--blue);
+      background: rgba(0,105,255,0.04);
+      font-size: 14px;
+    }
+    .about-text strong { color: var(--green); font-weight: normal; }
+    .about-text em     { color: var(--cyan);  font-style: normal; }
+
+    /* ── CARDS (edu / project / cert / volunteer) ── */
+    .card {
+      padding: 16px 18px;
+      border: 1px solid var(--dim);
+      margin-bottom: 12px;
+      background: rgba(255,255,255,0.015);
+      position: relative;
+    }
+    .card.cyan-accent::before  { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--cyan); }
+    .card.blue-accent::before  { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--blue); }
+    .card.green-accent::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--green); }
+    .card.orange-accent::before{ content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--orange); }
+
+    .card-title {
+      font-family: 'Inter', sans-serif;
+      color: var(--green);
+      font-size: 15px;
+    }
+    .card-title a { color: inherit; text-decoration: none; }
+    .card-title a:hover { color: var(--cyan); }
+
+    .card-sub {
+      color: var(--yellow);
+      font-size: 12px;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+    }
+    .card-date {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .card-body {
+      color: var(--text);
+      font-size: 13px;
+      margin-top: 9px;
+      line-height: 1.75;
+    }
+    .card-body code {
+      color: var(--cyan);
+      background: rgba(26,242,255,0.07);
+      padding: 1px 5px;
+      border-radius: 2px;
+    }
+    .card-body ul { margin-left: 18px; }
+    .card-body li { margin-top: 3px; }
+
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 8px;
+      border-radius: 3px;
+      margin-left: 10px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: rgba(26,242,255,0.1);
+      color: var(--cyan);
+      border: 1px solid rgba(26,242,255,0.25);
+    }
+
+    /* ═══════════════════════════════════════════
+       PDF-INSPIRED: NUMBERED ITEMS
+       (mirrors orange numbered circles in PDF objectives)
+    ═══════════════════════════════════════════ */
+    .numbered-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .num-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 12px 16px 12px 12px;
+      border: 1px solid var(--dim);
+      background: rgba(255,255,255,0.015);
+    }
+    .num-circle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--orange);
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: bold;
+      flex-shrink: 0;
+      box-shadow: 0 0 8px rgba(232,104,58,0.4);
+    }
+    .num-body { flex: 1; }
+    .num-title {
+      font-family: 'Inter', sans-serif;
+      color: var(--cyan);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .num-issuer {
+      color: var(--green);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .num-date  { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .num-cred  {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+    }
+    .num-cred span { color: #4a7080; }
+
+    /* ── SKILLS ── */
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .skill-item { display: flex; flex-direction: column; gap: 5px; }
+    .skill-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .skill-label .lvl { font-size: 10px; color: var(--yellow); letter-spacing: 1px; align-self: center; }
+    .skill-bar { height: 5px; background: var(--dim); border-radius: 3px; overflow: hidden; }
+    .skill-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      border-radius: 3px;
+    }
+    .skill-fill.maxed {
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      box-shadow: 0 0 5px rgba(0,255,157,0.4);
+    }
+
+    /* ── CTF ── */
+    .ctf-block { margin-bottom: 26px; }
+    .ctf-name {
+      font-family: 'Inter', sans-serif;
+      color: var(--cyan);
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+    .ctf-name::before { content: '# '; color: var(--green); }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 9px;
+      border-radius: 3px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+    .b-green  { background: rgba(0,255,157,0.1);  color: var(--green);  border: 1px solid rgba(0,255,157,0.3); }
+    .b-cyan   { background: rgba(26,242,255,0.1); color: var(--cyan);   border: 1px solid rgba(26,242,255,0.3); }
+    .b-yellow { background: rgba(231,224,92,0.1); color: var(--yellow); border: 1px solid rgba(231,224,92,0.3); }
+    .b-orange { background: rgba(232,104,58,0.12);color: var(--orange); border: 1px solid rgba(232,104,58,0.3); }
+
+    .teams-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+
+    .prog-item { margin-bottom: 10px; }
+    .prog-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .prog-label .pct { color: var(--yellow); }
+    .prog-bar { height: 5px; background: var(--dim); border-radius: 2px; overflow: hidden; }
+    .prog-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+    }
+    .prog-fill.done {
+      background: var(--green);
+      box-shadow: 0 0 5px rgba(0,255,157,0.5);
+    }
+
+    /* ═══════════════════════════════════════════
+       PDF-INSPIRED: SRL REFLECTION BLOCK
+       (Planning → Monitoring → Reflection stages)
+    ═══════════════════════════════════════════ */
+    .srl-block {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .srl-stage {
+      padding: 14px 16px;
+      border: 1px solid var(--dim);
+      background: rgba(13,31,60,0.5);
+      position: relative;
+    }
+    .srl-stage::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .srl-stage.plan::before    { background: var(--orange); }
+    .srl-stage.monitor::before { background: var(--cyan); }
+    .srl-stage.reflect::before { background: var(--green); }
+    .srl-stage-name {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    .srl-stage.plan    .srl-stage-name { color: var(--orange); }
+    .srl-stage.monitor .srl-stage-name { color: var(--cyan); }
+    .srl-stage.reflect .srl-stage-name { color: var(--green); }
+    .srl-stage p { font-size: 12px; color: var(--text); line-height: 1.65; opacity: 0.85; }
+
+    /* ── LINKS ── */
+    .links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      gap: 10px;
+    }
+    .link-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--dim);
+      text-decoration: none;
+      color: var(--text);
+      font-size: 13px;
+      background: rgba(255,255,255,0.012);
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+    .link-card:hover {
+      border-color: var(--cyan);
+      background: rgba(26,242,255,0.06);
+      color: var(--cyan);
+    }
+    .link-icon { color: var(--green); font-size: 14px; width: 16px; flex-shrink: 0; }
+
+    /* ── FOOTER ── */
+    .cv-footer {
+      text-align: center;
+      font-size: 11px;
+      color: #1e3040;
+      padding-top: 32px;
+      margin-top: 24px;
+      border-top: 1px solid var(--dim);
+      letter-spacing: 0.5px;
+      line-height: 2;
+    }
+    /* PDF-style bottom stripe */
+    .cv-footer::after {
+      content: '';
+      display: block;
+      margin-top: 20px;
+      height: 5px;
+      background: linear-gradient(90deg, var(--navy) 0 40%, var(--cyan) 40% 80%, #4a6070 80% 100%);
+      opacity: 0.4;
+    }
+
+    /* ── CURSOR ── */
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .cur {
+      display: inline-block;
+      width: 9px; height: 15px;
+      background: var(--green);
+      vertical-align: middle;
+      margin-left: 4px;
+      animation: blink 1s step-end infinite;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .cv-wrap      { padding: 16px 12px 60px; }
+      .skills-grid  { grid-template-columns: 1fr; }
+      .links-grid   { grid-template-columns: 1fr 1fr; }
+      .meta-row     { gap: 10px; }
+      .srl-block    { grid-template-columns: 1fr; }
+      .cv-nav .univ-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PDF-INSPIRED: TRI-COLOR STRIPE (matches slide header bars) -->
+<div class="pdf-stripe">
+  <span></span><span></span><span></span>
+</div>
+
+<div class="cv-wrap">
+
+  <!-- NAV -->
+  <nav class="cv-nav">
+    <a href="/">back to main</a>
+    <div class="univ-tag">University of Piraeus &nbsp;|&nbsp; <span>Department of Digital Systems</span></div>
+  </nav>
+
+  <!-- HEADER -->
+  <header class="cv-header">
+    <div class="name">Vassilis A.<span class="cur"></span></div>
+    <div class="handle">pingpwn</div>
+    <div class="tagline">Cybersecurity Student &amp; CTF Player — Greece</div>
+    <div class="meta-row">
+      <div class="meta-item">location: <span>Greece</span></div>
+      <div class="meta-item">university: <span>University of Piraeus</span></div>
+      <div class="meta-item">department: <span>Digital Systems</span></div>
+      <div class="meta-item">focus: <span>Rev · BinExp · Web</span></div>
+      <div class="meta-item">discord: <span>@pingpwn</span></div>
+      <div class="meta-item">ctf since: <span>June 2024</span></div>
+    </div>
+  </header>
+
+  <!-- WHOAMI -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">$</div>
+      <div>
+        <h2>whoami</h2>
+        <div class="st-sub">Profile Summary</div>
+      </div>
+    </div>
+    <p class="about-text">
+      I am a cybersecurity student at the <strong>University of Piraeus</strong>,
+      Department of Digital Systems (2021–2025), with a strong passion for low-level
+      security research and competitive hacking. I have been actively competing in CTF
+      competitions since <strong>June 2024</strong>, representing teams including
+      <em>ECSC Team Greece</em> — the national team for the European Cyber Security
+      Challenge. My primary areas of interest are <strong>reverse engineering</strong>
+      and <strong>binary exploitation</strong>, backed by formal training from
+      OpenSecurityTraining2 and a solid foundation in web security, cryptography, and
+      network analysis. Beyond competing, I build offensive tools, contribute to open-source
+      OSINT projects, and document my research on this blog. I am driven by a continuous
+      desire to learn, compete, and contribute to the security community.
+    </p>
+  </section>
+
+  <!-- EDUCATION -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">🎓</div>
+      <div>
+        <h2>Education</h2>
+        <div class="st-sub">Academic Background</div>
+      </div>
+    </div>
+
+    <div class="card cyan-accent">
+      <div class="card-title">B.Sc. — Department of Digital Systems</div>
+      <div class="card-sub">University of Piraeus &nbsp;|&nbsp; Piraeus, Greece</div>
+      <div class="card-date">2021 – 2025</div>
+      <div class="card-body">
+        Studying digital systems, information security, and software engineering.
+        Relevant coursework and activities:
+        <ul>
+          <li>IT-centric Professional Development (ITcPD_2026) — ePortfolio design via Self-Regulated Learning (SRL)</li>
+          <li>Applied use of AI tools as supportive learning aids: organising ideas, receiving feedback, improving content quality</li>
+          <li>Digital tools for knowledge organisation, project management, and effective presentation</li>
+          <li>Connection of SRL strategies with digital tools in Technology-Enhanced Learning Environments (TELE)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- VOLUNTEERING / EXPERIENCE -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">◈</div>
+      <div>
+        <h2>Experience</h2>
+        <div class="st-sub">Volunteering &amp; Involvement</div>
+      </div>
+    </div>
+
+    <div class="card orange-accent">
+      <div class="card-title">IT and Data — Volunteer</div>
+      <div class="card-sub">UniAI</div>
+      <div class="card-date">Sep 2023 – May 2024 &nbsp;·&nbsp; 9 months</div>
+      <div class="card-body">
+        Contributed to IT and data-related activities at UniAI, a student-driven AI initiative.
+        Involved in supporting technical infrastructure, data handling, and the integration of
+        AI tools within an academic context — directly relevant to the intersection of technology
+        and education that defines the Department of Digital Systems curriculum.
+      </div>
+    </div>
+  </section>
+
+  <!-- SKILLS -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">&gt;_</div>
+      <div>
+        <h2>Technical Skills</h2>
+        <div class="st-sub">Competencies &amp; Proficiency Levels</div>
+      </div>
+    </div>
+    <div class="skills-grid">
+      <div class="skill-item">
+        <div class="skill-label"><span>Reverse Engineering</span><span class="lvl">MASTERED</span></div>
+        <div class="skill-bar"><div class="skill-fill maxed" style="width:100%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>Binary Exploitation</span><span class="lvl">MASTERED</span></div>
+        <div class="skill-bar"><div class="skill-fill maxed" style="width:100%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>Web Security</span><span class="lvl">MASTERED</span></div>
+        <div class="skill-bar"><div class="skill-fill maxed" style="width:100%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>Network / Traffic Analysis</span><span class="lvl">MASTERED</span></div>
+        <div class="skill-bar"><div class="skill-fill maxed" style="width:100%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>Cryptography</span><span class="lvl">ADVANCED</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:97%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>C++ / Symbolic Analysis</span><span class="lvl">ADVANCED</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:85%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>C / Memory Management</span><span class="lvl">ADVANCED</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:82%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>Python</span><span class="lvl">ADVANCED</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:85%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>Linux / Shell</span><span class="lvl">ADVANCED</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:90%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>Prompt Injection / AI Security</span><span class="lvl">ADVANCED</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:88%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>OSINT</span><span class="lvl">PROFICIENT</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:75%"></div></div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-label"><span>AI Tools &amp; Self-Regulated Learning</span><span class="lvl">PROFICIENT</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:78%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CERTIFICATIONS (numbered like PDF objectives) -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">✦</div>
+      <div>
+        <h2>Licenses &amp; Certifications</h2>
+        <div class="st-sub">6 credentials on LinkedIn</div>
+      </div>
+    </div>
+
+    <div class="numbered-list">
+      <div class="num-item">
+        <div class="num-circle">1</div>
+        <div class="num-body">
+          <div class="num-title">Reverse Engineering 3201: Symbolic Analysis</div>
+          <div class="num-issuer">OpenSecurityTraining2</div>
+          <div class="num-date">Issued May 2025</div>
+          <div class="num-cred">Credential ID: <span>5a2832bc526b4281b12c59464f9e1598</span></div>
+        </div>
+      </div>
+
+      <div class="num-item">
+        <div class="num-circle">2</div>
+        <div class="num-body">
+          <div class="num-title">Reverse Engineering 3011: Reversing C++ Binaries</div>
+          <div class="num-issuer">OpenSecurityTraining2</div>
+          <div class="num-date">Issued May 2025</div>
+          <div class="num-cred">Credential ID: <span>3fb98012b8d54c54b944b7d74ed36257</span></div>
+        </div>
+      </div>
+
+      <div class="num-item">
+        <div class="num-circle" style="background:var(--muted); box-shadow:none;">+4</div>
+        <div class="num-body">
+          <div class="num-title" style="color:var(--muted);">Additional Certifications</div>
+          <div class="num-issuer" style="color:#2a4050;">4 more credentials listed on LinkedIn profile</div>
+          <div class="num-date">
+            <a href="https://www.linkedin.com/in/vassilis-a-039178359/" target="_blank" rel="noopener"
+               style="color:var(--cyan); font-size:12px;">View all on LinkedIn →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROJECTS -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">&lt;/&gt;</div>
+      <div>
+        <h2>Projects</h2>
+        <div class="st-sub">GitHub Repositories</div>
+      </div>
+    </div>
+
+    <div class="card blue-accent">
+      <div class="card-title">
+        <a href="https://github.com/pingpwn/wordpress-lfi" target="_blank" rel="noopener">wordpress-lfi</a>
+        <span class="tag">Python</span>
+      </div>
+      <div class="card-sub">Offensive Web Security</div>
+      <div class="card-body">
+        Exploit targeting a WordPress Local File Inclusion (LFI) vulnerability via brute-force
+        enumeration of <code>/proc</code> filesystem entries. Leverages Linux process internals
+        to extract sensitive data. Demonstrates practical offensive web skills and deep knowledge
+        of the Linux <code>/proc</code> pseudo-filesystem.
+      </div>
+    </div>
+
+    <div class="card blue-accent">
+      <div class="card-title">
+        <a href="https://github.com/pingpwn/ppalloc" target="_blank" rel="noopener">ppalloc</a>
+        <span class="tag">C</span>
+      </div>
+      <div class="card-sub">Systems Programming / Heap Internals</div>
+      <div class="card-body">
+        <code>ppalloc()</code> — a custom memory allocator built from scratch in C.
+        Implements <code>malloc</code>/<code>free</code> semantics with manual heap management.
+        Core knowledge for heap exploitation techniques (use-after-free, heap overflow, tcache
+        poisoning). Demonstrates low-level systems programming expertise.
+      </div>
+    </div>
+
+    <div class="card blue-accent">
+      <div class="card-title">
+        <a href="https://github.com/pingpwn/prompt-injection-writeups" target="_blank" rel="noopener">prompt-injection-writeups</a>
+        <span class="tag">AI Security</span>
+      </div>
+      <div class="card-sub">Emerging Offensive Security</div>
+      <div class="card-body">
+        Winning prompt injection payloads from CTF competitions. Documents techniques for
+        bypassing AI system prompt restrictions and extracting hidden instructions — an emerging
+        area at the intersection of offensive security and large language models (LLMs).
+      </div>
+    </div>
+
+    <div class="card blue-accent">
+      <div class="card-title">
+        <a href="https://github.com/pingpwn/pingpwn.github.io" target="_blank" rel="noopener">pingpwn.github.io</a>
+        <span class="tag">CSS / JS</span>
+      </div>
+      <div class="card-sub">Personal Blog &amp; ePortfolio</div>
+      <div class="card-body">
+        Personal cybersecurity blog and ePortfolio built with a retro CRT-monitor aesthetic.
+        Features custom VHS/scanlines effects, animated noise canvas, RGB glitch animations,
+        and click-driven SPA navigation — all in vanilla CSS and JavaScript. Hosts CTF writeups,
+        research notes, and this CV.
+      </div>
+    </div>
+
+    <div class="card blue-accent">
+      <div class="card-title">
+        <a href="https://github.com/pingpwn/tlosint-vm" target="_blank" rel="noopener">tlosint-vm</a>
+        <span class="tag">Shell</span>
+      </div>
+      <div class="card-sub">OSINT / Open Source Contribution</div>
+      <div class="card-body">
+        Contribution to the Trace Labs OSINT Virtual Machine — a specialised Linux environment
+        for Open Source Intelligence investigations, used in missing persons research and CTF
+        OSINT challenges.
+      </div>
+    </div>
+  </section>
+
+  <!-- CTF & COMPETITIVE -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">⚑</div>
+      <div>
+        <h2>CTF &amp; Competitive Hacking</h2>
+        <div class="st-sub">Platforms &amp; Achievements</div>
+      </div>
+    </div>
+
+    <div class="ctf-block">
+      <div class="ctf-name">HackTheBox</div>
+      <div>
+        <span class="badge b-green">Active Player</span>
+        <span class="badge b-cyan">User ID: 771008</span>
+      </div>
+      <div class="card-body" style="margin-top:10px;">
+        Regular participant solving machines and challenges across offensive security domains:
+        enumeration, privilege escalation, web exploitation, binary exploitation, and reverse engineering.
+      </div>
+    </div>
+
+    <div class="ctf-block">
+      <div class="ctf-name">CTFTime</div>
+      <div>
+        <span class="badge b-yellow">Competing since June 2024</span>
+        <span class="badge b-orange">ECSC Team Greece</span>
+      </div>
+      <div class="card-body" style="margin-top:10px;">
+        Active CTF competitor with a consistent record in national and international competitions.
+        Representing Greece at the European level through ECSC Team Greece.
+      </div>
+    </div>
+
+  </section>
+
+  <!-- SRL REFLECTION (PDF-inspired: Planning / Monitoring / Reflection) -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">◎</div>
+      <div>
+        <h2>ePortfolio Reflection</h2>
+        <div class="st-sub">Self-Regulated Learning Stages · ITcPD_2026</div>
+      </div>
+    </div>
+    <div class="srl-block">
+      <div class="srl-stage plan">
+        <div class="srl-stage-name">Planning</div>
+        <p>Set goal to document cybersecurity skills, projects, and competitive achievements in a structured ePortfolio aligned with academic and professional standards.</p>
+      </div>
+      <div class="srl-stage monitor">
+        <div class="srl-stage-name">Monitoring</div>
+        <p>Tracked progress across pwn.college modules, CTF competitions, GitHub projects, and OST2 certifications to ensure the portfolio accurately reflects current competency.</p>
+      </div>
+      <div class="srl-stage reflect">
+        <div class="srl-stage-name">Reflection</div>
+        <p>The ePortfolio process revealed clear strengths in RE and BinExp, identified OSINT as an area for further development, and highlighted the value of documenting learning outcomes publicly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT & LINKS -->
+  <section class="section">
+    <div class="section-title">
+      <div class="icon">@</div>
+      <div>
+        <h2>Contact &amp; Links</h2>
+        <div class="st-sub">Profiles &amp; Social</div>
+      </div>
+    </div>
+    <div class="links-grid">
+      <a class="link-card" href="https://pingpwn.github.io" target="_blank" rel="noopener">
+        <span class="link-icon">◆</span>Blog / Portfolio
+      </a>
+      <a class="link-card" href="https://github.com/pingpwn" target="_blank" rel="noopener">
+        <span class="link-icon">◆</span>GitHub
+      </a>
+      <a class="link-card" href="https://www.linkedin.com/in/vassilis-a-039178359/" target="_blank" rel="noopener">
+        <span class="link-icon">◆</span>LinkedIn
+      </a>
+      <a class="link-card" href="https://app.hackthebox.com/users/771008" target="_blank" rel="noopener">
+        <span class="link-icon">◆</span>HackTheBox
+      </a>
+      <a class="link-card" href="https://ctftime.org/user/194776" target="_blank" rel="noopener">
+        <span class="link-icon">◆</span>CTFTime
+      </a>
+      <a class="link-card" href="https://pwn.college/hacker/53984" target="_blank" rel="noopener">
+        <span class="link-icon">◆</span>pwn.college
+      </a>
+    </div>
+    <p style="font-size:13px; color:var(--muted); margin-top:14px;">
+      Discord: <span style="color:var(--cyan)">@pingpwn</span>
+    </p>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="cv-footer">
+    <p>pingpwn.github.io &nbsp;·&nbsp; Vassilis A. &nbsp;·&nbsp; 2026</p>
+    <p>ePortfolio &nbsp;·&nbsp; University of Piraeus, Department of Digital Systems &nbsp;·&nbsp; ITcPD_2026</p>
+  </footer>
+
+</div>
+</body>
+</html>

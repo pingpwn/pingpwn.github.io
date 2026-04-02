@@ -1,0 +1,104 @@
+%─────────────────────────────────────────
+%  Vassilis A. — Minimal CV
+%─────────────────────────────────────────
+\documentclass[10pt, a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1.8cm, top=1.5cm, bottom=1.5cm]{geometry}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{charter}   % clean readable serif
+
+\pagestyle{empty}
+\setlength{\parskip}{0pt}
+
+% ── section headers ──
+\titleformat{\section}
+  {\normalfont\small\bfseries\uppercase}
+  {}{0em}{}
+  [\vspace{2pt}\titlerule\vspace{2pt}]
+\titlespacing{\section}{0pt}{14pt}{4pt}
+
+% ── list settings ──
+\setlist[itemize]{
+  leftmargin=1.2em,
+  topsep=2pt,
+  itemsep=1pt,
+  parsep=0pt,
+  label={\small\textbullet}
+}
+
+\begin{document}
+
+%─── HEADER ───────────────────────────────
+\begin{center}
+  {\Large\bfseries Vassilis A.}\\[5pt]
+  {\small Cybersecurity Student \textbar{} CTF Player \textbar{} Greece}\\[4pt]
+  {\small
+    \href{https://pingpwn.github.io}{pingpwn.github.io}\enspace\textbar\enspace
+    \href{https://github.com/pingpwn}{github.com/pingpwn}\enspace\textbar\enspace
+    \href{https://www.linkedin.com/in/vassilis-a-039178359/}{linkedin}\enspace\textbar\enspace
+    \href{https://app.hackthebox.com/users/771008}{hackthebox}\enspace\textbar\enspace
+    discord: @pingpwn
+  }
+\end{center}
+
+\vspace{4pt}
+
+%─── EDUCATION ────────────────────────────
+\section{Education}
+
+\textbf{B.Sc., Department of Digital Systems} \hfill 2021 – present\\
+University of Piraeus, Greece
+
+%─── EXPERIENCE ───────────────────────────
+\section{Experience}
+
+\textbf{Teacher — Mathematics, Informatics, ECDL \& Robotics} \hfill \textit{2021 - present}\\
+\textit{So Easy Schools}\\[3pt]
+Teaching high school mathematics and informatics, ECDL certification preparation to adults, and robotics to children.
+
+\medskip
+
+\textbf{Volunteer — IT and Data} \hfill Sep 2023 – May 2024\\
+\textit{UniAI} \hfill \\[3pt]
+Contributed to technical infrastructure and data operations within a student-run AI initiative.
+
+%─── SKILLS ───────────────────────────────
+\section{Technical Skills}
+
+\begin{tabular}{@{}ll}
+  \textbf{Core:}      & Reverse Engineering, Binary Exploitation, Web Security, Network Analysis \\[2pt]
+  \textbf{Languages:} & Python, C \\[2pt]
+  \textbf{Other:}     & Cryptography, Linux, OSINT, AI Security \\
+\end{tabular}
+
+%─── CERTIFICATIONS ───────────────────────
+\section{Licenses \& Certifications}
+
+\begin{itemize}
+  \item \textbf{RE 3201: Symbolic Analysis} — OpenSecurityTraining2 \hfill May 2025
+  \item \textbf{RE 3011: Reversing C++ Binaries} — OpenSecurityTraining2 \hfill May 2025
+  \item \textbf{Architecture 1001: x86-64 Assembly} — OpenSecurityTraining2 \hfill May 2025
+  \item \textbf{Fundamentals of Deep Learning} — NVIDIA \hfill May 2024
+  \item \textbf{Michigan English Proficiency (C2)} — Hellenic American Union \hfill Jan 2017
+  \item \textbf{HSK2 Certificate of Mandarin Chinese} — HongLong \hfill Jan 2018
+\end{itemize}
+
+%─── CTF ──────────────────────────────────
+\section{CTF \& Competitive Hacking}
+
+\begin{itemize}
+  \item \textbf{HackTheBox} — Active player
+        \hfill\href{https://app.hackthebox.com/users/771008}{\small profile}
+
+  \item \textbf{CTFTime} — Competing since June 2024; member of ECSC Team Greece
+        \hfill\href{https://ctftime.org/user/194776}{\small profile}
+\end{itemize}
+
+\end{document}

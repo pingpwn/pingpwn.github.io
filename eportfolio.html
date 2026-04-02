@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>pingpwn — ePortfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #090c10;
+      --navy:    #0d1f3c;
+      --green:   #00ff9d;
+      --cyan:    #1af2ff;
+      --blue:    #0069ff;
+      --yellow:  #e7e05c;
+      --orange:  #e8683a;
+      --dim:     #1a2d3d;
+      --text:    #b8ccd8;
+      --muted:   #3a5060;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+
+    /* Scanlines */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.12) 50%);
+      background-size: 100% 3px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Tri-color stripe */
+    .stripe {
+      display: flex;
+      height: 6px;
+      position: sticky;
+      top: 0;
+      z-index: 500;
+    }
+    .stripe span:nth-child(1) { flex: 2; background: var(--navy); }
+    .stripe span:nth-child(2) { flex: 2; background: var(--cyan); opacity: .75; }
+    .stripe span:nth-child(3) { flex: 1; background: #4a6070; }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 20px 80px;
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      font-size: 13px;
+    }
+    nav a { color: var(--cyan); text-decoration: none; }
+    nav a::before { content: '← '; }
+    nav a:hover { color: var(--yellow); }
+    .nav-tag { font-size: 11px; color: var(--muted); }
+    .nav-tag span { color: var(--cyan); }
+
+    /* HEADER */
+    .ep-header {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      border: 1px solid var(--dim);
+      border-top: 3px solid var(--blue);
+      padding: 24px 28px;
+      margin-bottom: 32px;
+      background: linear-gradient(135deg, rgba(13,31,60,.6) 0%, rgba(9,12,16,.8) 100%);
+    }
+    .ep-header img { width: 90px; height: auto; flex-shrink: 0; }
+    .ep-title h1 {
+      font-size: clamp(22px, 4vw, 36px);
+      font-weight: 700;
+      color: var(--green);
+      text-shadow: 0 0 12px rgba(0,255,157,.35);
+      letter-spacing: 1px;
+    }
+    .ep-title .sub {
+      color: var(--cyan);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .ep-title .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.8;
+    }
+    .ep-title .meta span { color: var(--text); }
+
+    /* SECTION TITLES */
+    .section { margin-bottom: 36px; }
+
+    .sec-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(90deg, var(--navy) 0%, rgba(13,31,60,.4) 100%);
+      border-left: 4px solid var(--cyan);
+      padding: 10px 16px;
+      margin-bottom: 18px;
+    }
+    .sec-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: rgba(26,242,255,.1);
+      border: 1px solid rgba(26,242,255,.3);
+      border-radius: 4px;
+      color: var(--cyan);
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .sec-head h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    .sec-head .sec-sub { font-size: 10px; color: var(--muted); margin-top: 1px; letter-spacing: 1px; }
+
+    /* SRL phase accent colors */
+    .sec-head.plan    { border-left-color: var(--orange); }
+    .sec-head.plan    .sec-icon { background: rgba(232,104,58,.1); border-color: rgba(232,104,58,.3); color: var(--orange); }
+    .sec-head.perform { border-left-color: var(--cyan); }
+    .sec-head.reflect { border-left-color: var(--green); }
+    .sec-head.reflect .sec-icon { background: rgba(0,255,157,.1); border-color: rgba(0,255,157,.3); color: var(--green); }
+    .sec-head.ai      { border-left-color: var(--yellow); }
+    .sec-head.ai      .sec-icon { background: rgba(231,224,92,.1); border-color: rgba(231,224,92,.3); color: var(--yellow); }
+
+    /* CARDS */
+    .card {
+      padding: 16px 18px;
+      border: 1px solid var(--dim);
+      margin-bottom: 12px;
+      background: rgba(255,255,255,.015);
+      position: relative;
+    }
+    .card.c-blue::before   { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--blue); }
+    .card.c-cyan::before   { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--cyan); }
+    .card.c-orange::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--orange); }
+    .card.c-green::before  { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--green); }
+    .card.c-yellow::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--yellow); }
+
+    .card h3 { font-size: 14px; font-weight: 600; color: var(--green); margin-bottom: 6px; }
+    .card p  { font-size: 13px; color: var(--text); line-height: 1.75; }
+    .card ul { padding-left: 18px; font-size: 13px; color: var(--text); line-height: 1.8; }
+    .card a  { color: var(--cyan); text-decoration: none; }
+    .card a:hover { color: var(--yellow); }
+
+    /* KPI BOX */
+    .kpi-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .kpi {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      border: 1px solid var(--dim);
+      background: rgba(0,105,255,.06);
+      min-width: 100px;
+      text-align: center;
+    }
+    .kpi-val {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--cyan);
+      line-height: 1;
+    }
+    .kpi-val.green { color: var(--green); }
+    .kpi-val.orange { color: var(--orange); }
+    .kpi-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    /* STATUS badges */
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .b-done    { background: rgba(0,255,157,.1); color: var(--green); border: 1px solid rgba(0,255,157,.3); }
+    .b-pending { background: rgba(231,224,92,.08); color: var(--yellow); border: 1px solid rgba(231,224,92,.25); }
+    .b-pair    { background: rgba(232,104,58,.1); color: var(--orange); border: 1px solid rgba(232,104,58,.25); }
+
+    /* CHECKLIST */
+    .checklist { list-style: none; padding: 0; }
+    .checklist li {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 5px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(26,45,61,.5);
+      color: var(--text);
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .chk { font-size: 14px; flex-shrink: 0; }
+    .chk.done    { color: var(--green); }
+    .chk.pending { color: var(--yellow); }
+    .chk.pair    { color: var(--orange); }
+
+    /* SMART GOAL TABLE */
+    .smart-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+    .smart-table td { padding: 7px 10px; border: 1px solid var(--dim); vertical-align: top; }
+    .smart-table td:first-child { color: var(--cyan); font-weight: 600; width: 110px; background: rgba(26,242,255,.04); }
+
+    /* DIVIDER */
+    .divider { border: none; border-top: 1px solid var(--dim); margin: 8px 0 16px; }
+
+    /* FOOTNOTE */
+    footer {
+      text-align: center;
+      font-size: 11px;
+      color: #1e3040;
+      padding-top: 30px;
+      border-top: 1px solid var(--dim);
+      line-height: 2;
+    }
+
+    @media(max-width:600px) {
+      .ep-header { flex-direction: column; gap: 16px; text-align: center; }
+      .kpi-row   { justify-content: center; }
+      nav .nav-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="stripe"><span></span><span></span><span></span></div>
+
+<div class="wrap">
+
+  <!-- NAV -->
+  <nav>
+    <a href="/">back to main</a>
+    <div class="nav-tag">University of Piraeus &nbsp;|&nbsp; <span>Department of Digital Systems</span></div>
+  </nav>
+
+  <!-- HEADER -->
+  <header class="ep-header">
+    <img src="assets/ep_logo.svg" alt="ePortfolio logo — VA"/>
+    <div class="ep-title">
+      <h1>Vassilis A.</h1>
+      <div class="sub">ePortfolio — ITcPD_2026</div>
+      <div class="meta">
+        <span>Department of Digital Systems · University of Piraeus</span><br>
+        Cybersecurity Student &amp; CTF Player · Greece<br>
+        <a href="cv.html" style="color:var(--cyan);">View Web CV</a>
+        &nbsp;·&nbsp;
+        <a href="cv.pdf" style="color:var(--cyan);">Download PDF CV</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/pingpwn" target="_blank" rel="noopener" style="color:var(--cyan);">GitHub</a>
+        &nbsp;·&nbsp;
+        <a href="https://www.linkedin.com/in/vassilis-a-039178359/" target="_blank" rel="noopener" style="color:var(--cyan);">LinkedIn</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       DELIVERABLES CHECKLIST
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head">
+      <div class="sec-icon">✦</div>
+      <div><h2>Deliverables</h2><div class="sec-sub">Required for course completion</div></div>
+    </div>
+
+    <div class="card c-blue">
+      <ul class="checklist">
+        <li><span class="chk done">✓</span> <strong>ePortfolio Logo</strong> — designed as SVG, displayed above <span class="badge b-done">DONE</span></li>
+        <li><span class="chk done">✓</span> <strong>Short CV</strong> — available as interactive web page (<a href="cv.html">cv.html</a>) and print-ready PDF (<a href="cv.pdf">cv.pdf</a>) <span class="badge b-done">DONE</span></li>
+        <li><span class="chk done">✓</span> <strong>ePortfolio Website</strong> — this site at <a href="https://pingpwn.github.io" target="_blank" rel="noopener">pingpwn.github.io</a> <span class="badge b-done">DONE</span></li>
+        <li><span class="chk done">✓</span> <strong>KPIs</strong> — embedded in each section below <span class="badge b-done">DONE</span></li>
+        <li><span class="chk pair">○</span> <strong>Blog Post</strong> — performance phase, pair work <span class="badge b-pair">PAIR WORK</span></li>
+        <li><span class="chk pair">○</span> <strong>ePortfolio Evaluation × 2</strong> — reflection phase, pair work <span class="badge b-pair">PAIR WORK</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       SRL — FORETHOUGHT (PLANNING)
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head plan">
+      <div class="sec-icon">◎</div>
+      <div><h2>SRL Phase 1 — Forethought</h2><div class="sec-sub">Planning · Goal Setting · Task Analysis</div></div>
+    </div>
+
+    <div class="card c-orange">
+      <h3>Activity Map</h3>
+      <p>Identified all tasks required to complete the ITcPD_2026 ePortfolio assignment:</p>
+      <ul style="margin-top:8px;">
+        <li>Design and publish a personal blog/portfolio site (GitHub Pages)</li>
+        <li>Create an electronic CV (web format + print PDF)</li>
+        <li>Design an ePortfolio logo as a visual identity</li>
+        <li>Document certifications, skills, and experience</li>
+        <li>Apply and document SRL strategies across all phases</li>
+        <li>Declare AI tool usage for each deliverable</li>
+        <li>Complete all course questionnaires</li>
+        <li>Write a blog post and two peer evaluations (with partner)</li>
+      </ul>
+    </div>
+
+    <div class="card c-orange">
+      <h3>SMART Goal</h3>
+      <table class="smart-table">
+        <tr><td>Specific</td><td>Build a complete, publicly accessible ePortfolio at pingpwn.github.io, including an electronic CV, logo, SRL documentation, and AI use transparency, fulfilling all ITcPD_2026 deliverables.</td></tr>
+        <tr><td>Measurable</td><td>All 4 solo deliverables completed and live online; all 10 course questionnaires submitted; blog post and 2 evaluations completed with partner.</td></tr>
+        <tr><td>Achievable</td><td>Using existing web development knowledge, GitHub Pages hosting, LaTeX for PDF, and Claude Code (AI assistant) to accelerate implementation.</td></tr>
+        <tr><td>Relevant</td><td>Supports both academic requirements for ITcPD and long-term professional development as a cybersecurity professional.</td></tr>
+        <tr><td>Time-bound</td><td>All solo deliverables completed by April 2026; pair work pending coordination with partner.</td></tr>
+      </table>
+    </div>
+
+    <div class="card c-orange">
+      <h3>Motivation &amp; Reinforcement</h3>
+      <p>The ePortfolio serves a dual purpose: fulfilling the ITcPD course requirement <em>and</em> creating a professional online presence for future employment and security research recognition. This dual benefit — academic grade + career asset — provides strong intrinsic motivation. Additional reinforcement comes from the public nature of the site: the portfolio is visible to anyone, creating accountability to produce quality work.</p>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-val green">8</div><div class="kpi-label">Tasks Mapped</div></div>
+      <div class="kpi"><div class="kpi-val green">✓</div><div class="kpi-label">SMART Goal Set</div></div>
+      <div class="kpi"><div class="kpi-val orange">4/6</div><div class="kpi-label">Deliverables Done</div></div>
+      <div class="kpi"><div class="kpi-val green">✓</div><div class="kpi-label">Schedule Defined</div></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       SRL — PERFORMANCE (MONITORING)
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head perform">
+      <div class="sec-icon">▶</div>
+      <div><h2>SRL Phase 2 — Performance</h2><div class="sec-sub">Execution · Monitoring · Tools Used</div></div>
+    </div>
+
+    <div class="card c-cyan">
+      <h3>Work Completed</h3>
+      <ul>
+        <li>Designed and published personal blog at <a href="https://pingpwn.github.io" target="_blank" rel="noopener">pingpwn.github.io</a> with retro CRT aesthetic</li>
+        <li>Built interactive electronic CV (<a href="cv.html">cv.html</a>) — dark-themed, fully responsive, with skills, certifications, experience, and CTF achievements</li>
+        <li>Created print-ready single-page PDF CV (<a href="cv.pdf">cv.pdf</a>) using LaTeX/pdflatex with clean minimal typography</li>
+        <li>Designed ePortfolio SVG logo representing personal identity (hexagon, initials VA)</li>
+        <li>Documented all 6 LinkedIn certifications including 3× OpenSecurityTraining2, NVIDIA Deep Learning, C2 English, HSK2</li>
+        <li>Added teaching experience (So Easy Schools) and volunteer work (UniAI)</li>
+      </ul>
+    </div>
+
+    <div class="card c-cyan">
+      <h3>Tools &amp; Resources Used</h3>
+      <ul>
+        <li><strong>Claude Code (AI)</strong> — assisted with HTML/CSS/JS for the web CV, LaTeX for the PDF CV, SVG for the logo, and ePortfolio page structure</li>
+        <li><strong>GitHub Pages</strong> — free static hosting for the portfolio site</li>
+        <li><strong>pdflatex</strong> — PDF generation from LaTeX source</li>
+        <li><strong>Google Fonts (Inter)</strong> — clean, readable typography for CV and ePortfolio pages</li>
+        <li><strong>LinkedIn</strong> — source of truth for certifications, education dates, and experience</li>
+      </ul>
+    </div>
+
+    <div class="card c-cyan">
+      <h3>Progress Monitoring</h3>
+      <ul class="checklist">
+        <li><span class="chk done">✓</span> Blog site live at pingpwn.github.io</li>
+        <li><span class="chk done">✓</span> cv.html published and accessible</li>
+        <li><span class="chk done">✓</span> cv.pdf generated and linked</li>
+        <li><span class="chk done">✓</span> ePortfolio logo (ep_logo.svg) created</li>
+        <li><span class="chk done">✓</span> ePortfolio page (this page) published</li>
+        <li><span class="chk done">✓</span> KPIs defined and embedded per section</li>
+        <li><span class="chk pending">○</span> AI use questionnaires submitted (see AI Use section)</li>
+        <li><span class="chk pair">○</span> Blog post written with partner</li>
+        <li><span class="chk pair">○</span> Two peer evaluations completed</li>
+      </ul>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-val green">2</div><div class="kpi-label">CV Formats</div></div>
+      <div class="kpi"><div class="kpi-val green">6</div><div class="kpi-label">Certifications</div></div>
+      <div class="kpi"><div class="kpi-val green">4</div><div class="kpi-label">Skill Domains<br>Mastered</div></div>
+      <div class="kpi"><div class="kpi-val orange">3</div><div class="kpi-label">AI Tools<br>Declared</div></div>
+      <div class="kpi"><div class="kpi-val green">5</div><div class="kpi-label">GitHub<br>Projects</div></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       SRL — REFLECTION
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head reflect">
+      <div class="sec-icon">◈</div>
+      <div><h2>SRL Phase 3 — Reflection</h2><div class="sec-sub">Evaluation · Self-Assessment · Next Steps</div></div>
+    </div>
+
+    <div class="card c-green">
+      <h3>Evaluating Performance</h3>
+      <p>All four solo deliverables have been completed and are publicly accessible. The dual-format CV strategy (interactive HTML + clean PDF) proved effective: the HTML version serves digital networking while the PDF is ready for formal academic and professional submission. The decision to use LaTeX for the PDF significantly improved quality over browser-based PDF export.</p>
+    </div>
+
+    <div class="card c-green">
+      <h3>Assessing Strategy Effectiveness</h3>
+      <p>Using an AI assistant (Claude Code) as a learning aid was highly effective for accelerating implementation without removing the learning component — all code was reviewed and understood before publication. The SRL planning phase (task mapping, SMART goals) ensured no deliverable was overlooked. Breaking the work into discrete tasks (site → CV → logo → ePortfolio page) made a complex assignment manageable.</p>
+    </div>
+
+    <div class="card c-green">
+      <h3>Areas for Improvement &amp; Next Steps</h3>
+      <ul>
+        <li>Add more CTF writeups to the blog to demonstrate ongoing learning</li>
+        <li>Complete the two peer evaluations with a partner</li>
+        <li>Submit all 10 required course questionnaires</li>
+        <li>Expand the CV with any new certifications earned after April 2026</li>
+      </ul>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-val green">3/3</div><div class="kpi-label">SRL Phases<br>Documented</div></div>
+      <div class="kpi"><div class="kpi-val green">2</div><div class="kpi-label">Improvements<br>Identified</div></div>
+      <div class="kpi"><div class="kpi-val green">4</div><div class="kpi-label">Next Steps<br>Defined</div></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       AI USE TRANSPARENCY
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head ai">
+      <div class="sec-icon">⚙</div>
+      <div><h2>AI Use</h2><div class="sec-sub">Transparency declaration per deliverable</div></div>
+    </div>
+
+    <div class="card c-yellow">
+      <h3>Logo (ep_logo.svg)</h3>
+      <p><strong>AI used:</strong> Claude Code (Anthropic) — generated the SVG code for the hexagonal logo based on a description of the desired style (dark navy hexagon, green VA initials, cyan ePORTFOLIO label). The design concept and identity choices were made by the student.</p>
+    </div>
+
+    <div class="card c-yellow">
+      <h3>Short CV (cv.html &amp; cv.pdf)</h3>
+      <p><strong>AI used:</strong> Claude Code (Anthropic) — wrote the HTML/CSS for the interactive web CV and the LaTeX source for the print PDF. All personal content (experience, certifications, skills, dates) was provided and verified by the student. Several iterations of corrections were made by the student to ensure accuracy.</p>
+    </div>
+
+    <div class="card c-yellow">
+      <h3>ePortfolio Website (this page)</h3>
+      <p><strong>AI used:</strong> Claude Code (Anthropic) — assisted with HTML/CSS structure for the ePortfolio page, navigation integration, and the tri-color stripe design inspired by the ITcPD course presentation. The content of all sections (goals, reflections, KPIs, AI declarations) was authored by the student.</p>
+    </div>
+
+    <div class="card c-yellow" style="background: rgba(231,224,92,.03);">
+      <h3>Required Questionnaires — AI Use</h3>
+      <p style="margin-bottom:8px;">The course requires completing a Google Form for AI use in each deliverable. Access them on the <a href="https://apt2portfolio.weebly.com/ai-use.html" target="_blank" rel="noopener">AI Use page</a> of the course site.</p>
+      <ul class="checklist">
+        <li><span class="chk pending">○</span> AI use questionnaire — Logo</li>
+        <li><span class="chk pending">○</span> AI use questionnaire — CV</li>
+        <li><span class="chk pending">○</span> AI use questionnaire — ePortfolio site</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       COURSE QUESTIONNAIRES TRACKER
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head">
+      <div class="sec-icon">☑</div>
+      <div><h2>Evaluation Questionnaires</h2><div class="sec-sub">10 required — track your completion</div></div>
+    </div>
+
+    <div class="card c-blue">
+      <ul class="checklist">
+        <li><span class="chk pending">○</span> r1 — Which SRL strategies are mostly used in constructing the ePortfolio</li>
+        <li><span class="chk pending">○</span> r2_r3 (pre) — Motivated Strategies for Learning Questionnaire <em>(pre)</em></li>
+        <li><span class="chk pending">○</span> KPI check A</li>
+        <li><span class="chk pending">○</span> KPI check B</li>
+        <li><span class="chk pending">○</span> KPI check C</li>
+        <li><span class="chk pending">○</span> KPI check D</li>
+        <li><span class="chk pending">○</span> r2_r3 (post) — Motivated Strategies for Learning Questionnaire <em>(post)</em></li>
+        <li><span class="chk pending">○</span> Research — Affordances</li>
+        <li><span class="chk pending">○</span> Research — System impact</li>
+        <li><span class="chk pending">○</span> Research — AI use in learning</li>
+      </ul>
+      <p style="margin-top:12px; font-size:12px; color:var(--muted);">
+        Complete all questionnaires at
+        <a href="https://apt2portfolio.weebly.com/evaluation.html" target="_blank" rel="noopener">apt2portfolio.weebly.com/evaluation.html</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       BLOG POST (PAIR WORK)
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head">
+      <div class="sec-icon">✎</div>
+      <div><h2>Blog Post</h2><div class="sec-sub">Performance phase · Pair work</div></div>
+    </div>
+
+    <div class="card c-blue">
+      <p style="color:var(--yellow);">⏳ &nbsp;Pending — to be completed with partner during the performance phase.</p>
+      <hr class="divider">
+      <p style="font-size:12px; color:var(--muted);">This blog post will be published here once written collaboratively with the assigned partner. It will document shared learning experiences and reflections from the course.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       EVALUATIONS (PAIR WORK)
+  ══════════════════════════════════════ -->
+  <section class="section">
+    <div class="sec-head">
+      <div class="sec-icon">◧</div>
+      <div><h2>ePortfolio Evaluations</h2><div class="sec-sub">Reflection phase · Pair work · ×2 required</div></div>
+    </div>
+
+    <div class="card c-blue">
+      <p style="color:var(--yellow);">⏳ &nbsp;Pending — two evaluations to be completed collaboratively with partner during the reflection phase.</p>
+      <hr class="divider">
+      <p style="font-size:12px; color:var(--muted);">Each evaluation will assess a peer's ePortfolio against the course criteria and provide structured feedback using the provided evaluation rubric.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>Vassilis A. &nbsp;·&nbsp; pingpwn.github.io &nbsp;·&nbsp; 2026</p>
+    <p>ePortfolio &nbsp;·&nbsp; University of Piraeus, Department of Digital Systems &nbsp;·&nbsp; ITcPD_2026</p>
+  </footer>
+
+</div>
+</body>
+</html>
